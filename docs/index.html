@@ -377,8 +377,9 @@ fetch("https://api.github.com/repos/cybereun/song-to-score/releases/latest")
 (async () => {
   const base = "https://cybereun.goatcounter.com/counter/" + encodeURIComponent("/song-to-score/") + ".json";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
-  const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  const [all, day] = await Promise.all([get(base), get(`${base}?start=${today}&end=${today}`)]);
+  // 404 = 그 기간 방문 기록 없음 → 0
+  const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : r.status === 404 ? { count: "0" } : null)).catch(() => null);
+  const [all, day] = await Promise.all([get(base), get(`${base}?start=${today}`)]);
   if (!all) return;
   const num = (o) => (o && o.count != null ? String(o.count) : "0");
   document.querySelectorAll(".vstats").forEach((el) => {
