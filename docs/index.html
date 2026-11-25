@@ -363,7 +363,7 @@ fetch("https://api.github.com/repos/cybereun/song-to-score/releases/latest")
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()); // YYYY-MM-DD
     const base = stats && stats.daily && stats.daily[today];
     const fmt = (n) => n.toLocaleString("ko-KR");
-    document.querySelectorAll(".dlstats").forEach((el) => {
+    document.querySelectorAll(".dlstats:not(.vstats)").forEach((el) => {
       el.querySelector(".dl-total").textContent = fmt(total);
       if (base) el.querySelector(".dl-today").textContent = fmt(Math.max(0, total - base.start_total));
       else { el.querySelector(".today").hidden = true; el.querySelector(".sep").hidden = true; }
