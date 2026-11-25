@@ -120,6 +120,7 @@ section { padding: 84px 0; }
 .dlstats[hidden], .dlstats [hidden] { display: none !important; }
 .dlstats b { color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; margin: 0 2px; }
 .dlstats .today b { color: var(--accent); }
+.vstats { margin-top: 10px; }
 .dlstats .sep { width: 1px; height: 16px; background: var(--line); }
 .band .dlstats { display: flex; width: fit-content; margin-left: auto !important; margin-right: auto !important; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); color: #c9c3b6; margin: 0 0 24px; }
 .band .dlstats b { color: #fff; }
@@ -177,6 +178,7 @@ footer a { color: var(--accent); }
       </div>
       <p class="meta"><span id="ver">최신 버전</span> · Windows 10/11 64비트 · 설치 파일 약 40MB</p>
       <div class="dlstats" hidden><span class="today">📥 오늘 다운로드 <b class="dl-today">-</b>회</span><span class="sep"></span><span>누적 <b class="dl-total">-</b>회</span></div>
+      <div class="dlstats vstats" hidden><span class="today">👀 오늘 방문 <b class="v-today">-</b>명</span><span class="sep"></span><span>누적 방문 <b class="v-total">-</b>명</span></div>
       <div class="shot"><img src="images/playback.webp" alt="재생하면 지금 부르는 음표와 가사가 빨간색으로 표시되는 프로그램 화면" width="1600" height="1000"></div>
     </div>
   </section>
@@ -320,6 +322,7 @@ footer a { color: var(--accent); }
       <h2>좋아하는 노래, 오늘 악보로 만들어 보세요</h2>
       <p>무료 · 오픈소스 · Windows 10/11</p>
       <div class="dlstats" hidden><span class="today">📥 오늘 다운로드 <b class="dl-today">-</b>회</span><span class="sep"></span><span>누적 <b class="dl-total">-</b>회</span></div>
+      <div class="dlstats vstats" hidden><span class="today">👀 오늘 방문 <b class="v-today">-</b>명</span><span class="sep"></span><span>누적 방문 <b class="v-total">-</b>명</span></div>
       <a class="btn btn-primary dl-link" href="https://github.com/cybereun/song-to-score/releases/latest">⬇ 무료 다운로드</a>
     </div>
   </section>
@@ -367,6 +370,23 @@ fetch("https://api.github.com/repos/cybereun/song-to-score/releases/latest")
       el.hidden = false;
     });
   } catch (e) {}
+})();
+
+
+// 방문 수: GoatCounter 공개 집계 (설정에서 'visitor counter'를 켜야 보임)
+(async () => {
+  const base = "https://cybereun.goatcounter.com/counter/" + encodeURIComponent("/song-to-score/") + ".json";
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+  const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const [all, day] = await Promise.all([get(base), get(`${base}?start=${today}&end=${today}`)]);
+  if (!all) return;
+  const num = (o) => (o && o.count != null ? String(o.count) : "0");
+  document.querySelectorAll(".vstats").forEach((el) => {
+    el.querySelector(".v-total").textContent = num(all);
+    if (day) el.querySelector(".v-today").textContent = num(day);
+    else { el.querySelector(".today").hidden = true; el.querySelector(".sep").hidden = true; }
+    el.hidden = false;
+  });
 })();
 
 // 다운로드 버튼 클릭 집계 (GoatCounter 이벤트)
