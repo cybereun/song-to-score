@@ -1,0 +1,36 @@
+name: 다운로드 수 기록
+
+on:
+  schedule:
+    - cron: "0 15 * * *" # 매일 00:00 (한국 시각)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: download-stats
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 누적 다운로드 수 기록
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/record_downloads.py
+
+      - name: 바뀐 내용 올리기
+        run: |
+          if git diff --quiet -- docs/stats; then
+            echo "변경 없음"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/stats
+          git commit -m "다운로드 수 기록 $(TZ=Asia/Seoul date +%F)"
+          git push

@@ -116,6 +116,16 @@ section { padding: 84px 0; }
 .band h2 { font-size: clamp(28px, 3.6vw, 40px); margin: 0 0 12px; letter-spacing: -.03em; }
 .band p { color: #c9c3b6; margin: 0 0 28px; }
 
+.dlstats { display: inline-flex; align-items: center; gap: 14px; margin-top: 18px; padding: 10px 18px; border-radius: 99px; background: var(--paper); border: 1px solid var(--line); font-size: 15px; color: var(--muted); }
+.dlstats[hidden], .dlstats [hidden] { display: none !important; }
+.dlstats b { color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; margin: 0 2px; }
+.dlstats .today b { color: var(--accent); }
+.dlstats .sep { width: 1px; height: 16px; background: var(--line); }
+.band .dlstats { display: flex; width: fit-content; margin-left: auto !important; margin-right: auto !important; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); color: #c9c3b6; margin: 0 0 24px; }
+.band .dlstats b { color: #fff; }
+.band .dlstats .today b { color: #f2a48f; }
+.band .dlstats .sep { background: rgba(255,255,255,.2); }
+
 /* footer */
 footer { padding: 44px 0 56px; font-size: 14px; color: var(--muted); }
 footer .wrap { display: grid; gap: 14px; }
@@ -166,6 +176,7 @@ footer a { color: var(--accent); }
         <a class="btn btn-ghost" href="#how">어떻게 동작하나요?</a>
       </div>
       <p class="meta"><span id="ver">최신 버전</span> · Windows 10/11 64비트 · 설치 파일 약 40MB</p>
+      <div class="dlstats" hidden><span class="today">📥 오늘 다운로드 <b class="dl-today">-</b>회</span><span class="sep"></span><span>누적 <b class="dl-total">-</b>회</span></div>
       <div class="shot"><img src="images/playback.webp" alt="재생하면 지금 부르는 음표와 가사가 빨간색으로 표시되는 프로그램 화면" width="1600" height="1000"></div>
     </div>
   </section>
@@ -308,6 +319,7 @@ footer a { color: var(--accent); }
     <div class="wrap">
       <h2>좋아하는 노래, 오늘 악보로 만들어 보세요</h2>
       <p>무료 · 오픈소스 · Windows 10/11</p>
+      <div class="dlstats" hidden><span class="today">📥 오늘 다운로드 <b class="dl-today">-</b>회</span><span class="sep"></span><span>누적 <b class="dl-total">-</b>회</span></div>
       <a class="btn btn-primary dl-link" href="https://github.com/cybereun/song-to-score/releases/latest">⬇ 무료 다운로드</a>
     </div>
   </section>
@@ -334,6 +346,28 @@ fetch("https://api.github.com/repos/cybereun/song-to-score/releases/latest")
     document.getElementById("ver").textContent = `${rel.tag_name} · ${new Date(rel.published_at).toLocaleDateString("ko-KR")}`;
   })
   .catch(() => {});
+
+// 다운로드 수: 누적은 GitHub 릴리즈 집계, 오늘은 (누적 - 오늘 0시 기록)
+(async () => {
+  try {
+    const [rels, stats] = await Promise.all([
+      fetch("https://api.github.com/repos/cybereun/song-to-score/releases?per_page=100").then((r) => (r.ok ? r.json() : null)),
+      fetch("stats/downloads.json?t=" + Date.now()).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    if (!rels) return;
+    const total = rels.reduce((sum, r) => sum + (r.assets || []).filter((a) => a.name.endsWith(".exe"))
+      .reduce((s2, a) => s2 + a.download_count, 0), 0);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()); // YYYY-MM-DD
+    const base = stats && stats.daily && stats.daily[today];
+    const fmt = (n) => n.toLocaleString("ko-KR");
+    document.querySelectorAll(".dlstats").forEach((el) => {
+      el.querySelector(".dl-total").textContent = fmt(total);
+      if (base) el.querySelector(".dl-today").textContent = fmt(Math.max(0, total - base.start_total));
+      else { el.querySelector(".today").hidden = true; el.querySelector(".sep").hidden = true; }
+      el.hidden = false;
+    });
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
