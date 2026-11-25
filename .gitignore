@@ -1,0 +1,9 @@
+.venv/
+tools/
+jobs/
+build/
+dist/
+__pycache__/
+*.pyc
+*.log
+app_test.log

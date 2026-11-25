@@ -1,0 +1,18 @@
+# torch / torchaudio 는 설치.bat 에서 GPU 여부에 맞춰 따로 설치합니다.
+demucs==4.1.0
+faster-whisper==1.2.1
+ctranslate2==4.9.1
+av==19.0.2
+librosa==1.0.1
+torchcrepe==0.0.24
+music21==10.5.2
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.34
+soundfile==0.14.0
+onnxruntime==1.32.0
+pretty_midi==0.2.11.post0
+mir_eval==0.8.2
+resampy==0.4.3
+numpy==2.5.5
+pywebview==6.2.1

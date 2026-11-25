@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>노래 악보 만들기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎼</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">🎼</span><div><h1>노래 악보 만들기</h1><p>mp3·wav를 넣으면 보컬을 분리해 악보와 가사를 PDF로 만들어요</p></div></div>
+  <div id="health" class="health"></div>
+</header>
+
+<main class="layout">
+  <aside class="panel">
+    <!-- 1. 업로드 -->
+    <section id="upload" class="card">
+      <h2><span class="num">1</span>음원 넣기</h2>
+      <label id="drop" class="drop">
+        <input id="file" type="file" accept=".mp3,.wav,.m4a,.flac,.ogg,.aac,audio/*" hidden>
+        <div class="drop-icon">🎵</div>
+        <strong>여기에 파일을 끌어다 놓거나 클릭</strong>
+        <span>mp3 · wav · m4a · flac</span>
+      </label>
+      <div class="row">
+        <label class="field grow">가사 언어
+          <select id="language">
+            <option value="auto">자동 감지</option>
+            <option value="ko" selected>한국어</option>
+            <option value="en">영어</option>
+            <option value="ja">일본어</option>
+            <option value="zh">중국어</option>
+          </select>
+        </label>
+      </div>
+      <div id="recent" class="recent"></div>
+    </section>
+
+    <!-- 2. 진행 -->
+    <section id="progress" class="card hidden">
+      <h2><span class="num">2</span>분석 중 <small id="fname"></small></h2>
+      <div class="bar"><div id="bar-fill"></div></div>
+      <p id="pmsg" class="muted">준비 중…</p>
+      <ol id="steps" class="steps">
+        <li data-step="separate">보컬 / 반주 분리</li>
+        <li data-step="lyrics">가사 받아쓰기</li>
+        <li data-step="melody">멜로디 음표 추출</li>
+        <li data-step="rhythm">템포 · 박자 · 코드</li>
+        <li data-step="accomp">반주 음 받아쓰기</li>
+        <li data-step="finish">마무리</li>
+      </ol>
+    </section>
+
+    <!-- 3. 설정 -->
+    <section id="settings" class="card hidden">
+      <h2><span class="num">3</span>악보 설정</h2>
+      <div id="summary" class="summary"></div>
+
+      <div class="modes" id="modes">
+        <label class="mode"><input type="radio" name="mode" value="lead" checked><span>🎤<b>멜로디</b><i>멜로디 + 코드 + 가사</i></span></label>
+        <label class="mode"><input type="radio" name="mode" value="piano_easy"><span>🎹<b>피아노 (쉬운)</b><i>멜로디 + 코드 반주</i></span></label>
+        <label class="mode"><input type="radio" name="mode" value="piano_full"><span>🎹<b>피아노 (원곡)</b><i>반주 음 받아쓰기</i></span></label>
+        <label class="mode"><input type="radio" name="mode" value="guitar_melody"><span>🎸<b>기타 TAB</b><i>멜로디 TAB + 운지</i></span></label>
+        <label class="mode"><input type="radio" name="mode" value="guitar_chords"><span>🎸<b>기타 코드</b><i>코드 반주 TAB</i></span></label>
+      </div>
+
+      <div class="grid2">
+        <label class="field">제목<input id="title" type="text"></label>
+        <label class="field">가수 / 작곡<input id="artist" type="text"></label>
+      </div>
+
+      <div class="grid3">
+        <label class="field">박자
+          <select id="time_sig"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option></select>
+        </label>
+        <label class="field">음표 단위
+          <select id="grid"><option value="16">16분음표 (자세히)</option><option value="8">8분음표 (단순)</option></select>
+        </label>
+        <label class="field">한 줄 마디 수
+          <select id="bars_per_line"><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
+        </label>
+      </div>
+
+      <div class="grid3">
+        <div class="field">템포
+          <div class="seg" id="tempo_mult">
+            <button data-v="0.5">½배</button><button data-v="1" class="on">1배</button><button data-v="2">2배</button>
+          </div>
+        </div>
+        <div class="field">첫 박 위치
+          <div class="stepper"><button data-for="downbeat_shift" data-d="-1">−</button><output id="downbeat_shift">0</output><button data-for="downbeat_shift" data-d="1">+</button></div>
+        </div>
+        <div class="field">조옮김 (반음)
+          <div class="stepper"><button data-for="transpose" data-d="-1">−</button><output id="transpose">0</output><button data-for="transpose" data-d="1">+</button></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <label class="field">조 (Key)
+          <select id="key"><option value="auto">자동</option></select>
+        </label>
+        <label class="field">코드 바뀜 정도
+          <input id="chord_stability" type="range" min="0.02" max="0.4" step="0.02" value="0.12">
+          <span class="hint"><span>자주</span><span>드물게</span></span>
+        </label>
+      </div>
+
+      <div class="checks">
+        <label><input id="show_lyrics" type="checkbox" checked> 음표 아래 가사</label>
+        <label><input id="lyrics_page" type="checkbox" checked> 마지막에 가사 페이지</label>
+      </div>
+
+      <details class="lyrics-box" open>
+        <summary>가사 확인 · 고치기 <small>(한 줄씩, 줄 수를 유지하면 박자가 정확해요)</small></summary>
+        <textarea id="lyrics" rows="9" spellcheck="false"></textarea>
+        <button id="lyrics-reset" class="link">인식된 원래 가사로 되돌리기</button>
+      </details>
+
+      <button id="render" class="primary">악보 만들기</button>
+    </section>
+
+    <!-- 4. 내려받기 -->
+    <section id="downloads" class="card hidden">
+      <h2><span class="num">4</span>저장하기</h2>
+      <div class="dl">
+        <a id="dl-pdf" class="btn primary" download>📄 PDF 저장</a>
+        <button id="print" class="btn">🖨 인쇄</button>
+        <a id="dl-xml" class="btn" download>MusicXML</a>
+        <a id="dl-midi" class="btn" download>MIDI</a>
+      </div>
+      <div class="stems">
+        <div><span>원곡</span><audio id="a-src" controls preload="none"></audio></div>
+        <div><span>보컬</span><audio id="a-voc" controls preload="none"></audio><a id="dl-voc" download>저장</a></div>
+        <div><span>반주</span><audio id="a-acc" controls preload="none"></audio><a id="dl-acc" download>저장</a></div>
+      </div>
+      <button id="new" class="link">다른 곡 넣기</button>
+    </section>
+  </aside>
+
+  <section class="viewer">
+    <div id="empty" class="empty">
+      <div class="empty-art">
+        <svg viewBox="0 0 220 120" aria-hidden="true">
+          <g stroke="currentColor" stroke-width="1.5" opacity=".35">
+            <line x1="10" y1="30" x2="210" y2="30"/><line x1="10" y1="42" x2="210" y2="42"/><line x1="10" y1="54" x2="210" y2="54"/><line x1="10" y1="66" x2="210" y2="66"/><line x1="10" y1="78" x2="210" y2="78"/>
+          </g>
+          <g fill="currentColor"><ellipse cx="50" cy="66" rx="7" ry="5"/><ellipse cx="90" cy="54" rx="7" ry="5"/><ellipse cx="130" cy="48" rx="7" ry="5"/><ellipse cx="170" cy="36" rx="7" ry="5"/></g>
+          <g stroke="currentColor" stroke-width="2"><line x1="57" y1="66" x2="57" y2="30"/><line x1="97" y1="54" x2="97" y2="18"/><line x1="137" y1="48" x2="137" y2="12"/><line x1="177" y1="36" x2="177" y2="4"/></g>
+        </svg>
+      </div>
+      <h3>악보 미리보기</h3>
+      <p>음원을 넣고 분석이 끝나면 여기에 악보가 나타나요. 노래를 재생하며 음표를 따라갈 수 있어요.</p>
+      <ul class="how">
+        <li><b>보컬 분리</b> 노래 목소리와 반주를 나눠요</li>
+        <li><b>멜로디·가사</b> 목소리에서 음표와 가사를 뽑아요</li>
+        <li><b>코드·템포</b> 반주에서 코드 진행과 빠르기를 찾아요</li>
+      </ul>
+    </div>
+    <div id="busy" class="busy hidden"><div class="spinner"></div><p>악보를 그리는 중…</p></div>
+
+    <!-- 재생기 -->
+    <div id="player" class="player hidden">
+      <button id="pl-play" class="pl-btn" title="재생 / 멈춤 (스페이스)">▶</button>
+      <span id="pl-time" class="pl-time">0:00 / 0:00</span>
+      <input id="pl-seek" type="range" min="0" max="1000" value="0" aria-label="재생 위치">
+      <select id="pl-src" aria-label="들을 소리">
+        <option value="source">원곡</option>
+        <option value="vocals" selected>보컬만</option>
+        <option value="accomp">반주만</option>
+      </select>
+      <select id="pl-rate" aria-label="재생 속도">
+        <option value="0.5">0.5배</option><option value="0.75">0.75배</option><option value="1" selected>1배</option>
+      </select>
+      <label class="pl-follow"><input id="pl-follow" type="checkbox" checked> 따라가기</label>
+      <span id="pl-status" class="pl-status"></span>
+    </div>
+    <p id="sheet-hint" class="sheet-hint hidden">▶ 재생하면 지금 부르는 음표와 가사가 <b class="red">빨간색</b>으로 표시돼요. 음표나 가사를 누르면 그 위치로 이동하고 가사를 고칠 수 있어요.</p>
+    <div id="sheet" class="sheet hidden"></div>
+    <audio id="pl-audio" preload="auto"></audio>
+
+    <!-- 가사 고치기 창 -->
+    <div id="editor" class="editor hidden" role="dialog" aria-label="가사 고치기">
+      <div class="ed-head"><b>가사 고치기</b><span id="ed-time"></span><button id="ed-close" class="ed-x" title="닫기">×</button></div>
+      <input id="ed-text" type="text" placeholder="이 음표의 가사 (비우면 가사 없음)">
+      <div class="ed-row">
+        <button id="ed-save" class="btn primary">바꾸기</button>
+        <button id="ed-del" class="btn">지우기</button>
+      </div>
+      <div class="ed-row">
+        <button id="ed-insert" class="btn" title="여기에 새 글자를 넣고, 뒤 가사를 한 음표씩 뒤로 밀어요">끼워 넣기 ⇥</button>
+        <button id="ed-pull" class="btn" title="이 글자를 지우고, 뒤 가사를 한 음표씩 앞으로 당겨요">지우고 당기기 ⇤</button>
+      </div>
+      <div class="ed-row small">
+        <button id="ed-prev" class="link">◀ 앞 음표</button>
+        <button id="ed-play" class="link">▶ 이 부분 듣기</button>
+        <button id="ed-next" class="link">다음 음표 ▶</button>
+      </div>
+    </div>
+    <div id="error" class="error hidden"></div>
+  </section>
+</main>
+<script src="app.js"></script>
+<script src="player.js"></script>
+</body>
+</html>
