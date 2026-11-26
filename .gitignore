@@ -8,3 +8,4 @@ __pycache__/
 *.log
 app_test.log
 blog/
+models/

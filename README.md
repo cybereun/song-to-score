@@ -173,6 +173,7 @@ assets/              아이콘
 | [torchcrepe](https://github.com/maxrmorrison/torchcrepe) (CREPE 모델) | 보컬 음높이 추적 | MIT | © Max Morrison / CREPE: Jong Wook Kim 외 |
 | [Basic Pitch](https://github.com/spotify/basic-pitch) | 반주 음 받아쓰기 | Apache-2.0 | © Spotify AB |
 | [librosa](https://librosa.org/) | 템포·박·크로마 분석 | ISC | © librosa 개발팀 |
+| [Pyphen](https://github.com/Kozea/Pyphen) (+ hyph_en_US 사전) | 영어 가사 음절 나누기 | GPL-2.0+ / LGPL-2.1+ / MPL-1.1 (택일) | © Kozea, 사전 © 각 저작자 |
 | [music21](https://web.mit.edu/music21/) | MusicXML 만들기 | BSD-3-Clause | © Michael Scott Asato Cuthbert 및 기여자 |
 | [pretty_midi](https://github.com/craffel/pretty-midi) / [mir_eval](https://github.com/craffel/mir_eval) | MIDI·음악 정보 처리 | MIT | © Colin Raffel 외 |
 | [NumPy](https://numpy.org/) / [SciPy](https://scipy.org/) / [scikit-learn](https://scikit-learn.org/) | 수치 계산 | BSD-3-Clause | © 각 프로젝트 개발자 |

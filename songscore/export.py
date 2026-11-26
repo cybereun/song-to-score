@@ -42,7 +42,7 @@ def write_musicxml(sc: Score, path: Path) -> Path:
                 n = chord.Chord(ev.pitches)
             n.quarterLength = ev.length * ql
             if is_melody and ev.lyric:
-                n.lyric = ev.lyric
+                n.lyric = ev.lyric[:-1] if ev.lyric.endswith("-") and len(ev.lyric) > 1 else ev.lyric
             p.insert(ev.start * ql, n)
         return p.makeNotation(inPlace=False)
 

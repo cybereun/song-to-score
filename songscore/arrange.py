@@ -197,6 +197,17 @@ def align_edited(lines: list[dict], edited: list[str]) -> list[tuple[float, str,
     return [(float(t), s, a) for t, s, a in zip(times, new, anchored)]
 
 
+def _join(prev: str, text: str) -> str:
+    """한 음표에 음절이 둘 이상 붙을 때 이어 쓰기 (Some- + where → Somewhere, 한글은 붙여서)."""
+    if not prev:
+        return text
+    if prev.endswith("-"):
+        return prev[:-1] + text
+    if not prev[-1].isascii() and not text[0].isascii():
+        return prev + text
+    return prev + " " + text
+
+
 def _fill_missing_notes(mel: list[dict], syl: list[tuple[float, str]]) -> list[dict]:
     """가사 음절이 있는데 근처에 음표가 없으면(주로 줄 첫 글자의 약한 자음)
     바로 뒤 음의 높이로 짧은 음표를 만들어 채운다."""
@@ -204,9 +215,22 @@ def _fill_missing_notes(mel: list[dict], syl: list[tuple[float, str]]) -> list[d
         return mel
     starts = np.array([n["start"] for n in mel])
     ends = np.array([n["end"] for n in mel])
+    # 한 구절(0.8초 넘게 쉬기 전까지)의 음절 수만큼 실제 음표가 있으면 가짜 음표를 만들지 않는다.
+    # (가사 시간이 조금 이르게 잡혀도 실제 음표에 차례로 붙는다)
+    enough = [False] * len(syl)
+    i = 0
+    while i < len(syl):
+        j = i
+        while j + 1 < len(syl) and syl[j + 1][0] - syl[j][0] < 0.8:
+            j += 1
+        a, b = syl[i][0] - 0.3, syl[j][0] + 0.8
+        n_notes = int(np.sum((starts >= a) & (starts <= b)))
+        for k in range(i, j + 1):
+            enough[k] = n_notes >= (j - i + 1)
+        i = j + 1
     extra = []
-    for t, _, anchored in syl:
-        if not anchored or np.any((starts <= t + 0.3) & (ends >= t - 0.05)):
+    for idx, (t, _, anchored) in enumerate(syl):
+        if not anchored or enough[idx] or np.any((starts <= t + 0.3) & (ends >= t - 0.05)):
             continue
         nxt = np.where(starts > t)[0]
         prv = np.where(ends <= t)[0]
@@ -240,8 +264,7 @@ def _assign_lyrics(notes: list[dict], syl: list[tuple[float, str, bool]]) -> lis
                 last, last_t = j, starts[j]
                 continue
             if last >= 0:
-                sep = "" if not res[last][-1:].isascii() and not text[0].isascii() else " "
-                res[last] = (res[last] + sep + text) if res[last] else text
+                res[last] = _join(res[last], text)
             continue
         # 아직 안 쓴 음표 가운데 음절 시작 근처에서 시작하는 것
         cand = [j for j in range(last + 1, len(starts))
@@ -256,13 +279,30 @@ def _assign_lyrics(notes: list[dict], syl: list[tuple[float, str, bool]]) -> lis
                 if abs(starts[near] - t) > 0.8:
                     continue
                 j = near
-        if res[j]:
-            sep = "" if not res[j][-1].isascii() and not text[0].isascii() else " "
-            res[j] = res[j] + sep + text
-        else:
-            res[j] = text
+        res[j] = _join(res[j], text)
         if j > last:
             last, last_t = j, starts[j]
+    return _snap_phrase_starts(notes, res)
+
+
+def _snap_phrase_starts(notes: list[dict], res: list[str], back: float = 0.9) -> list[str]:
+    """구절 첫 글자를 실제로 부르기 시작한 음표로 당긴다.
+
+    Whisper 는 노래의 첫 단어 시간을 늦게 잡는 경우가 있어, 첫 글자 앞에 쉼 없이 이어진
+    (가사 없는) 음표가 있으면 그중 맨 앞 음표에 첫 글자를 붙인다."""
+    prev_lyric_end = -1e9
+    for j, text in enumerate(res):
+        if not text:
+            continue
+        if notes[j]["start"] - prev_lyric_end > 1.0:  # 앞 가사와 1초 넘게 떨어진 = 구절 시작
+            i = j
+            while (i - 1 >= 0 and not res[i - 1]
+                   and notes[j]["start"] - notes[i - 1]["start"] <= back
+                   and notes[i]["start"] - notes[i - 1]["end"] < 0.15):
+                i -= 1
+            if i != j:
+                res[i], res[j] = text, ""
+        prev_lyric_end = notes[j]["end"]
     return res
 
 

@@ -32,6 +32,7 @@
 - torchcrepe (음높이 추적) ..... MIT                https://github.com/maxrmorrison/torchcrepe
 - Basic Pitch (음 받아쓰기) .... Apache-2.0         https://github.com/spotify/basic-pitch
 - librosa ..................... ISC                https://librosa.org/
+- Pyphen (영어 음절 나누기) .... GPL-2.0+/LGPL-2.1+/MPL-1.1  https://github.com/Kozea/Pyphen
 - music21 ..................... BSD-3-Clause       https://web.mit.edu/music21/
 - FastAPI / Starlette / Uvicorn  MIT / BSD-3-Clause
 - pywebview / pythonnet ....... BSD-3-Clause / MIT

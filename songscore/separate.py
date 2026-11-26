@@ -37,6 +37,11 @@ def separate(src: Path, out_dir: Path, progress=lambda p, msg="": None) -> tuple
     t = (t - mean) / std
 
     progress(0.05, "보컬 분리 모델 실행 중")
+    # Demucs 는 무작위 시간 이동(shift)을 써서 실행마다 결과가 조금씩 달라진다 → 고정
+    import random
+
+    random.seed(0)
+    torch.manual_seed(0)
     with torch.no_grad():
         sources = apply_model(
             model, t[None], device=device, shifts=1, split=True, overlap=0.25, progress=False,

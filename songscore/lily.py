@@ -206,7 +206,9 @@ def lyric_music(lyrics: list[tuple[str, int]], ids: bool = True) -> str:
         if not text:
             out.append("\\skip 1")
         else:
-            out.append((_tag("l", nid) if ids and nid >= 0 else "") + f'"{_esc(text)}"')
+            hyphen = text.endswith("-") and len(text) > 1  # 영어 음절 이음 (Some -- where)
+            word = text[:-1] if hyphen else text
+            out.append((_tag("l", nid) if ids and nid >= 0 else "") + f'"{_esc(word)}"' + (" --" if hyphen else ""))
     return " ".join(out)
 
 
@@ -282,7 +284,7 @@ def build_ly(sc: Score) -> str:
   {chr(10).join(p for p in parts if p)}
   >>
   \\layout {{
-    \\context {{ \\Score \\override NonMusicalPaperColumn.line-break-permission = ##f }}
+    % 4마디마다 줄을 바꾸되(\\break), 음표가 많아 한 줄에 다 안 들어가면 자동으로 더 나눈다 (오른쪽 잘림 방지)
     \\context {{ \\Lyrics \\override LyricText.font-size = #0.5 \\override LyricSpace.minimum-distance = #1.2 }}
     \\context {{ \\ChordNames \\override ChordName.font-size = #1.5 }}
   }}

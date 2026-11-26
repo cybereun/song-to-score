@@ -16,3 +16,4 @@ mir_eval==0.8.2
 resampy==0.4.3
 numpy==2.5.5
 pywebview==6.2.1
+pyphen==0.18.1
