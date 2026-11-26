@@ -150,6 +150,8 @@ def main():
     srv = uvicorn.Server(config)
     threading.Thread(target=srv.run, daemon=True).start()
 
+    from songscore.version import VERSION
+
     url = f"http://127.0.0.1:{port}"
     for _ in range(300):  # 최대 30초 기다림 (torch 로딩)
         try:
@@ -159,12 +161,13 @@ def main():
             time.sleep(0.1)
 
     api = Api()
-    window = webview.create_window(TITLE, url, js_api=api, width=1400, height=900, min_size=(1000, 650),
+    window = webview.create_window(TITLE, f"{url}/?v={VERSION}", js_api=api, width=1400, height=900, min_size=(1000, 650),
                                    background_color="#F4F1EA", text_select=True)
     api._window = window
     if ICON.exists():
         window.events.shown += lambda: _set_window_icon(window)
     webview.settings["ALLOW_DOWNLOADS"] = True
+    webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True  # 홈페이지·스레드 링크는 기본 브라우저로
     webview.start(gui="edgechromium", private_mode=False,
                   storage_path=str(Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SongToScore" / "webview"))
     srv.should_exit = True

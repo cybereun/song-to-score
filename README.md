@@ -65,6 +65,12 @@ mp3·wav 노래 파일을 넣으면 <b>보컬을 분리해 멜로디·코드·�
 | 그래픽카드 | NVIDIA GPU (VRAM 4GB 이상) 권장. 없어도 동작하지만 한 곡에 10분 이상 걸릴 수 있어요 |
 | 인터넷 | 설치할 때와 첫 분석 때만 필요 |
 
+### 업데이트
+v1.0.1부터는 프로그램을 열 때 새 버전이 있는지 자동으로 확인합니다. 새 버전이 있으면 안내 창이 뜨고, **「지금 업데이트하고 다시 시작」** 을 누르면 받아서 설치한 뒤 프로그램이 새 버전으로 다시 열립니다(약 1~3분). 작업한 악보와 설정은 그대로 남습니다.
+오른쪽 위 ⚙ 설정 → 「업데이트」 에서도 직접 확인할 수 있습니다.
+
+> **v1.0.0 사용자는 v1.0.1을 한 번 직접 받아 설치해 주세요.** v1.0.0에는 업데이트 확인 기능이 없고, 처음 분석할 때 가사 인식 단계(30%)에서 `Unable to open file 'model.bin'` 오류가 나는 문제가 있습니다. 덮어 설치하면 작업 파일은 그대로 남습니다.
+
 ### 제거
 Windows 「설정 → 앱 → 설치된 앱」 에서 「노래 악보 만들기」를 제거합니다. 분석한 작업 파일과 AI 모델(`%LOCALAPPDATA%\SongToScore`)도 지울지 물어봅니다.
 구성 요소 설치가 중간에 실패했다면 시작 메뉴의 「노래 악보 만들기 - 구성 요소 다시 설치」를 실행하세요.
@@ -85,6 +91,7 @@ Windows 「설정 → 앱 → 설치된 앱」 에서 「노래 악보 만들기
    - **박자·조 보정**: 템포가 두 배/절반으로 잡혔으면 「½배 / 2배」, 마디가 한두 박 밀렸으면 「첫 박 위치」, 부르기 편한 키가 필요하면 「조옮김」.
    - **음표 단위**: 8분음표로 바꾸면 더 단순하고 읽기 쉬운 악보가 됩니다.
 6. **저장·인쇄** — 「PDF 저장」, 「인쇄」, 「MusicXML」, 「MIDI」. 분리된 보컬·반주 wav도 저장할 수 있어요.
+7. **설정(⚙)** — 오른쪽 위 톱니바퀴를 누르면 도움말, 업데이트 확인, 개발자 정보를 볼 수 있어요. 현재 버전은 제목 옆에 작게 표시됩니다.
 
 > 자동 채보 결과는 **초안**입니다. 꾸밈음이 많은 창법·랩·화음 코러스는 손으로 다듬어야 할 수 있어요. 더 세밀한 편집은 MusicXML을 [MuseScore](https://musescore.org/)에서 열어 하면 편합니다.
 
@@ -120,7 +127,8 @@ server.py            로컬 웹 서버 (FastAPI)
 songscore/           분석·편곡·조판
   separate.py  lyrics.py  melody.py  rhythm.py  harmony.py  accomp.py
   arrange.py   lily.py    export.py  pipeline.py  config.py
-web/                 화면 (HTML·CSS·JS: app.js, player.js)
+  version.py   updater.py (버전 정보·자동 업데이트)
+web/                 화면 (HTML·CSS·JS: app.js, player.js, update.js)
 installer/           설치 파일 (Inno Setup 스크립트, 구성 요소 설치 스크립트, 오픈소스 안내)
 docs/                홍보용 웹페이지 (GitHub Pages)
 assets/              아이콘
@@ -131,7 +139,7 @@ assets/              아이콘
 ### 개발자
 | | |
 |---|---|
-| 개발자 | [cybereun](https://github.com/cybereun) |
+| 개발자 | [@2026Lebi_Cybereun](https://www.threads.com/@lebi_cyber) (스레드) · GitHub [cybereun](https://github.com/cybereun) |
 | 저장소 | https://github.com/cybereun/song-to-score |
 | 홈페이지 | https://cybereun.github.io/song-to-score/ |
 

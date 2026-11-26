@@ -21,6 +21,8 @@ from songscore.arrange import MODES  # noqa: E402
 from songscore.config import APP_DIR, JOBS_DIR, find_lilypond  # noqa: E402
 
 PORT = int(os.environ.get("SONGSCORE_PORT", "8765"))
+if "--port" in sys.argv:
+    PORT = int(sys.argv[sys.argv.index("--port") + 1])
 app = FastAPI(title="노래 악보 만들기")
 gpu_lock = threading.Lock()
 render_lock = threading.Lock()
@@ -130,6 +132,50 @@ def render(job_id: str, settings: dict):
     return {"info": res["info"], "files": files, "pages": pages, "timeline": res["timeline"]}
 
 
+@app.get("/api/version")
+def app_version():
+    from songscore import version
+    from songscore.config import INSTALLED
+
+    return {"version": version.CURRENT, "installed": INSTALLED, "developer": version.DEVELOPER,
+            "homepage": version.HOMEPAGE, "repo": version.REPO_URL, "threads": version.THREADS}
+
+
+@app.get("/api/update/check")
+def update_check(force: int = 0):
+    from songscore import updater
+
+    return updater.check(force=bool(force))
+
+
+@app.post("/api/update/start")
+def update_start():
+    from songscore import updater
+    from songscore.config import INSTALLED
+
+    if not INSTALLED:
+        return JSONResponse({"ok": False, "error": "개발용 실행에서는 자동 업데이트를 할 수 없어요. 홈페이지에서 받아 주세요."},
+                            status_code=400)
+    return updater.start_download()
+
+
+@app.get("/api/update/status")
+def update_status():
+    from songscore import updater
+
+    return updater.status()
+
+
+@app.post("/api/update/install")
+def update_install():
+    from songscore import updater
+    from songscore.config import INSTALLED
+
+    if not INSTALLED:
+        return JSONResponse({"ok": False, "error": "설치판에서만 쓸 수 있어요."}, status_code=400)
+    return updater.install_and_restart()
+
+
 @app.post("/api/jobs/{job_id}/settings")
 def save_settings(job_id: str, settings: dict):
     """가사 고치기처럼 화면을 다시 그릴 필요가 없는 변경을 저장한다."""
@@ -216,6 +262,26 @@ def health():
 
     return {"lilypond": bool(find_lilypond()), "cuda": torch.cuda.is_available(),
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}
+
+
+@app.middleware("http")
+async def no_stale_ui(request, call_next):
+    """화면 파일은 매번 새로 확인하게 한다 (업데이트 뒤에도 예전 화면이 남지 않도록)."""
+    resp = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
+def index():
+    """화면 파일 주소에 버전을 붙여(style.css?v=1.0.1) 버전이 바뀌면 새로 받게 한다."""
+    from fastapi.responses import HTMLResponse
+    from songscore import version
+
+    html = (APP_DIR / "web" / "index.html").read_text(encoding="utf-8").replace("__V__", version.VERSION)
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
 app.mount("/", StaticFiles(directory=APP_DIR / "web", html=True), name="web")

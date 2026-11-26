@@ -176,7 +176,7 @@ footer a { color: var(--accent); }
         <a class="btn btn-primary dl-link" href="https://github.com/cybereun/song-to-score/releases/latest">⬇ Windows용 다운로드</a>
         <a class="btn btn-ghost" href="#how">어떻게 동작하나요?</a>
       </div>
-      <p class="meta"><span id="ver">최신 버전</span> · Windows 10/11 64비트 · 설치 파일 약 50MB</p>
+      <p class="meta"><span id="ver">최신 버전</span> · Windows 10/11 64비트 · 설치 파일 <span id="size">약 50MB</span></p>
       <div class="dlstats" hidden><span class="today">📥 오늘 다운로드 <b class="dl-today">-</b>회</span><span class="sep"></span><span>누적 <b class="dl-total">-</b>회</span></div>
       <div class="dlstats vstats" hidden><span class="today">👀 오늘 방문 <b class="v-today">-</b>명</span><span class="sep"></span><span>누적 방문 <b class="v-total">-</b>명</span></div>
       <div class="shot"><img src="images/playback.webp" alt="재생하면 지금 부르는 음표와 가사가 빨간색으로 표시되는 프로그램 화면" width="1600" height="1000"></div>
@@ -347,6 +347,7 @@ fetch("https://api.github.com/repos/cybereun/song-to-score/releases/latest")
     const exe = (rel.assets || []).find((a) => a.name.endsWith(".exe"));
     if (exe) document.querySelectorAll(".dl-link").forEach((a) => (a.href = exe.browser_download_url));
     document.getElementById("ver").textContent = `${rel.tag_name} · ${new Date(rel.published_at).toLocaleDateString("ko-KR")}`;
+    if (exe && exe.size) document.getElementById("size").textContent = `약 ${Math.round(exe.size / 1048576)}MB`;
   })
   .catch(() => {});
 

@@ -60,6 +60,8 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\python\pythonw.exe"; Paramete
 [Run]
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup_env.ps1"" -AppDir ""{app}"""; WorkingDir: "{app}"; StatusMsg: "분석 구성 요소를 내려받아 설치하는 중이에요 (3~15분, 열린 창을 닫지 마세요)..."; Flags: waituntilterminated
 Filename: "{app}\python\pythonw.exe"; Parameters: """{app}\app.py"""; WorkingDir: "{app}"; Description: "노래 악보 만들기 실행"; Flags: postinstall nowait skipifsilent
+; 프로그램 안에서 업데이트했을 때(/RELAUNCH): 설치가 끝나면 다시 실행
+Filename: "{app}\python\pythonw.exe"; Parameters: """{app}\app.py"""; WorkingDir: "{app}"; Flags: nowait; Check: IsRelaunch
 
 [UninstallRun]
 ; pip 로 설치된 라이브러리는 경로가 길어(260자 초과) 일반 삭제가 실패할 수 있어 \\?\ 경로로 먼저 지운다
@@ -75,6 +77,14 @@ Type: files; Name: "{app}\setup_log.txt"
 Type: dirifempty; Name: "{app}"
 
 [Code]
+function IsRelaunch(): Boolean;
+var i: Integer;
+begin
+  Result := False;
+  for i := 1 to ParamCount do
+    if CompareText(ParamStr(i), '/RELAUNCH') = 0 then Result := True;
+end;
+
 function DataDir(): String;
 begin
   Result := ExpandConstant('{localappdata}\SongToScore');

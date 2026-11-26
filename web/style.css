@@ -156,3 +156,39 @@ body.desktop .layout { height: calc(100vh - 63px); }
 .ed-row .btn { padding: 8px 6px; font-size: 13px; }
 .ed-row.small { grid-template-columns: auto auto auto; justify-content: space-between; }
 .ed-row.small .link { padding: 0; }
+
+/* ---------- 버전 · 설정 · 업데이트 */
+.ver { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; margin-left: 6px; vertical-align: 3px; letter-spacing: 0; }
+.top-right { display: flex; align-items: center; gap: 12px; }
+.icon-btn { position: relative; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+.icon-btn:hover { background: var(--bg); color: var(--accent); }
+.icon-btn .dot { position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: #e0321e; box-shadow: 0 0 0 2px var(--paper); }
+.modal { position: fixed; inset: 0; background: rgba(35, 33, 29, .45); display: grid; place-items: center; z-index: 50; padding: 20px; }
+.modal-card { background: var(--paper); border-radius: 16px; width: min(560px, 100%); max-height: 86vh; overflow: auto; box-shadow: 0 30px 80px rgba(0,0,0,.3); padding: 22px 24px; }
+.modal-card.narrow { width: min(460px, 100%); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.modal-head h2 { margin: 0; font-size: 18px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.tab { border: 0; background: none; padding: 9px 14px; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.help-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 13.5px; }
+.small { font-size: 12px; }
+.upd-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.upd-row span { color: var(--muted); }
+.upd-msg { font-size: 13px; color: var(--muted); min-height: 18px; margin: 12px 0 0; }
+.upd-msg.err { color: #b4321e; }
+.upd-notes { margin-top: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 13px; max-height: 200px; overflow: auto; white-space: pre-wrap; line-height: 1.6; }
+.upd-progress { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.upd-progress .bar { flex: 1; }
+.upd-progress .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.upd-progress span { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
+.upd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.upd-big { font-size: 15px; margin: 4px 0 0; }
+.about { text-align: center; padding: 8px 0; }
+.about-logo { font-size: 44px; }
+.about h3 { margin: 6px 0 10px; }
+.about .dev { font-size: 15px; margin: 0 0 8px; }
+.about .links { margin: 0 0 14px; font-size: 13px; }
+.about a, .pane a { color: var(--accent); }
+.about .dev-link { font-weight: 700; text-decoration: none; border-bottom: 1.5px solid currentColor; }
+.about .dev-link:hover { opacity: .8; }

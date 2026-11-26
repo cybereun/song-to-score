@@ -5,13 +5,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>노래 악보 만들기</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎼</text></svg>">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=__V__">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">🎼</span><div><h1>노래 악보 만들기</h1><p>mp3·wav를 넣으면 보컬을 분리해 악보와 가사를 PDF로 만들어요</p></div></div>
-  <div id="health" class="health"></div>
+  <div class="brand"><span class="logo">🎼</span><div><h1>노래 악보 만들기 <span id="app-ver" class="ver"></span></h1><p>mp3·wav를 넣으면 보컬을 분리해 악보와 가사를 PDF로 만들어요</p></div></div>
+  <div class="top-right">
+    <div id="health" class="health"></div>
+    <button id="open-settings" class="icon-btn" title="설정 · 도움말 · 업데이트" aria-label="설정">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.7c0 .2.2.4.5.4h4c.3 0 .5-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6L19.4 13zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+      <span id="update-dot" class="dot hidden"></span>
+    </button>
+  </div>
 </header>
+
+<!-- 설정 창 -->
+<div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="settings-title">설정</h2>
+      <button class="ed-x" data-close aria-label="닫기">×</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-tab="help" role="tab">도움말</button>
+      <button class="tab" data-tab="update" role="tab">업데이트</button>
+      <button class="tab" data-tab="about" role="tab">개발자 정보</button>
+    </div>
+
+    <section class="pane" data-pane="help">
+      <ol class="help-list">
+        <li><b>음원 넣기</b> — mp3·wav·flac·m4a 파일을 왼쪽 칸에 끌어다 놓아요. 영어 노래는 가사 언어를 「자동 감지」나 「영어」로 고르면 더 정확해요.</li>
+        <li><b>분석 기다리기</b> — 보컬 분리 → 가사 → 멜로디 → 템포·코드 순서로 진행돼요. 처음 한 번은 분석 모델(약 2GB)을 받느라 더 걸려요.</li>
+        <li><b>악보 고르기</b> — 멜로디 · 피아노(쉬운/원곡) · 기타 TAB · 기타 코드 중에서 골라요.</li>
+        <li><b>재생하며 확인</b> — ▶ 또는 스페이스 키. 지금 부르는 음표와 가사가 빨간색으로 표시돼요.</li>
+        <li><b>가사 고치기</b> — 음표나 가사를 누르면 바꾸기 · 지우기 · 끼워 넣기 · 당기기를 할 수 있어요.</li>
+        <li><b>보정</b> — 템포가 두 배/절반이면 「½배·2배」, 마디가 밀리면 「첫 박 위치」, 키가 높으면 「조옮김」.</li>
+        <li><b>저장</b> — PDF · MusicXML · MIDI, 분리된 보컬·반주 wav를 저장할 수 있어요.</li>
+      </ol>
+      <p class="muted small">더 자세한 설명: <a id="help-home" href="#" target="_blank" rel="noopener">홈페이지</a> · <a id="help-repo" href="#" target="_blank" rel="noopener">사용 설명서(README)</a></p>
+    </section>
+
+    <section class="pane hidden" data-pane="update">
+      <div class="upd-row"><span>현재 버전</span><b id="upd-current">-</b></div>
+      <div class="upd-row"><span>최신 버전</span><b id="upd-latest">확인 중…</b></div>
+      <p id="upd-msg" class="upd-msg"></p>
+      <div id="upd-notes" class="upd-notes hidden"></div>
+      <div id="upd-progress" class="upd-progress hidden"><div class="bar"><div id="upd-bar"></div></div><span id="upd-pct">0%</span></div>
+      <div class="upd-actions">
+        <button id="upd-check" class="btn">다시 확인</button>
+        <button id="upd-go" class="btn primary hidden">지금 업데이트</button>
+      </div>
+    </section>
+
+    <section class="pane hidden" data-pane="about">
+      <div class="about">
+        <div class="about-logo">🎼</div>
+        <h3>노래 악보 만들기 <span id="about-ver" class="ver"></span></h3>
+        <p class="dev">개발자 <a id="about-dev" class="dev-link" href="https://www.threads.com/@lebi_cyber" target="_blank" rel="noopener" title="스레드에서 보기">@2026Lebi_Cybereun</a></p>
+        <p class="links"><a id="about-home" href="#" target="_blank" rel="noopener">홈페이지</a> · <a id="about-repo" href="#" target="_blank" rel="noopener">GitHub</a> · <a id="about-issue" href="#" target="_blank" rel="noopener">문의 · 버그 신고</a></p>
+        <p class="muted small">© 2026 cybereun · MIT License<br>LilyPond, PyTorch, Demucs, Whisper 등 오픈소스 구성 요소는 각자의 라이선스를 따릅니다.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 새 버전 안내 -->
+<div id="update-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="update-title">
+  <div class="modal-card narrow">
+    <div class="modal-head"><h2 id="update-title">🎉 새 버전이 나왔어요</h2><button class="ed-x" data-close aria-label="닫기">×</button></div>
+    <p class="upd-big"><span id="um-current"></span> → <b id="um-latest"></b></p>
+    <div id="um-notes" class="upd-notes"></div>
+    <div id="um-progress" class="upd-progress hidden"><div class="bar"><div id="um-bar"></div></div><span id="um-pct">0%</span></div>
+    <p id="um-msg" class="upd-msg"></p>
+    <div class="upd-actions">
+      <button id="um-later" class="btn">나중에</button>
+      <button id="um-go" class="btn primary">지금 업데이트하고 다시 시작</button>
+    </div>
+  </div>
+</div>
 
 <main class="layout">
   <aside class="panel">
@@ -201,7 +272,8 @@
     <div id="error" class="error hidden"></div>
   </section>
 </main>
-<script src="app.js"></script>
-<script src="player.js"></script>
+<script src="app.js?v=__V__"></script>
+<script src="player.js?v=__V__"></script>
+<script src="update.js?v=__V__"></script>
 </body>
 </html>
