@@ -9,3 +9,4 @@ __pycache__/
 app_test.log
 blog/
 models/
+eval/

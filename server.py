@@ -46,7 +46,8 @@ def _run(d: Path, src: Path, language: str | None):
 
 
 @app.post("/api/jobs")
-async def create_job(file: UploadFile = File(...), language: str = Form("auto")):
+async def create_job(file: UploadFile = File(...), language: str = Form("auto"),
+                     original_lyrics: str = Form("")):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED:
         raise HTTPException(400, "mp3, wav, m4a, flac, ogg 파일만 지원합니다")
@@ -57,7 +58,8 @@ async def create_job(file: UploadFile = File(...), language: str = Form("auto"))
     with src.open("wb") as f:
         while chunk := await file.read(1 << 20):
             f.write(chunk)
-    meta = {"id": job_id, "name": Path(file.filename).stem, "created": time.time(), "language": language}
+    meta = {"id": job_id, "name": Path(file.filename).stem, "created": time.time(), "language": language,
+            "original_lyrics": original_lyrics[:20000]}
     (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     lang = None if language == "auto" else language
     threading.Thread(target=_run, args=(d, src, lang), daemon=True).start()
@@ -121,7 +123,23 @@ def analysis(job_id: str):
         "lyrics": [ln["text"] for ln in an["lyrics"]["lines"]],
         "melody_notes": len(an["melody"]), "accomp_notes": len(an.get("accomp_notes", [])),
         "modes": MODES, "settings": meta.get("settings"),
+        "verify": an.get("verify"), "original_lyrics": meta.get("original_lyrics", ""),
+        "can_original": "units" in an["lyrics"],
     }
+
+
+@app.post("/api/jobs/{job_id}/original")
+def set_original(job_id: str, body: dict):
+    """원문 가사 적용(빈 글이면 받아쓴 가사로 되돌림)."""
+    d = job_dir(job_id)
+    if not (d / "analysis.json").exists():
+        raise HTTPException(409, "아직 분석 중입니다")
+    with render_lock:
+        try:
+            verify = pipeline.apply_original(d, str(body.get("text", ""))[:20000])
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    return {"ok": True, "verify": verify}
 
 
 @app.post("/api/jobs/{job_id}/render")

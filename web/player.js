@@ -47,7 +47,9 @@ async function render(opts = {}) {
     const i = res.info;
     $("#summary").querySelectorAll(".r").forEach((x) => x.remove());
     $("#summary").insertAdjacentHTML("beforeend",
-      `<span class="r">악보<b>${i.bars}마디 · ${i.key} · ♩=${i.bpm}</b></span>`);
+      `<span class="r">악보<b>${i.bars}마디 · ${i.key} · ♩=${i.bpm}</b></span>` +
+      `<span class="r">확인 필요<b>가사 ${i.unsure_lyrics} · 음 ${i.unsure_notes}</b></span>` +
+      `<span class="r">${i.overflow ? "⚠ 잘린 줄 있음" : "✅ 잘림 없음"}</span>`);
     const nEdits = Object.keys(lyricEdits).length;
     $("#pl-status").textContent = nEdits ? `직접 고친 가사 ${nEdits}곳` : "";
   } catch (err) {
@@ -187,6 +189,8 @@ function openEditor(idx) {
   const els = elsOf(it.n);
   els.forEach((el) => el.classList.toggle("selected", true));
   $("#ed-text").value = it.lyric || "";
+  show("#ed-doubt", !!(it.u || it.lu));
+  show("#ed-ok", !!(it.u || it.lu));
   $("#ed-time").textContent = `${fmt(it.t0)} 부근`;
   const ed = $("#editor");
   show("#editor");
@@ -221,10 +225,15 @@ function commitEdits(changes) {
   // PDF·MIDI·MusicXML 은 저장할 때 고친 가사로 새로 만든다.
   for (const [n, text] of changes) {
     lyricEdits[n] = text;
+    clearDoubt(n, false);
     const it = timeline.find((x) => x.n === n);
     if (it) it.lyric = text;
     patchLyric(n, text);
   }
+  saveSettingsSoon();
+}
+
+function saveSettingsSoon() {
   $("#pl-status").textContent = `직접 고친 가사 ${Object.keys(lyricEdits).length}곳 · 저장 중…`;
   clearTimeout(editTimer);
   editTimer = setTimeout(async () => {
@@ -316,4 +325,44 @@ $("#ed-play").addEventListener("click", () => {
   if (!audio.src) setAudioSource();
   audio.currentTime = Math.max(0, timeline[editorIdx].t0 - 0.5);
   audio.play();
+});
+
+// ---------- 확인 필요 표시
+function clearDoubt(n, alsoNote) {
+  (lyricEls.get(n) || []).forEach((el) => el.classList.toggle("unsure", false));
+  const it = timeline.find((x) => x.n === n);
+  if (it) it.lu = false;
+  if (alsoNote) {
+    (noteEls.get(n) || []).forEach((el) => el.classList.toggle("unsure", false));
+    if (it) it.u = false;
+  }
+}
+$("#ed-ok").addEventListener("click", () => {
+  if (editorIdx < 0) return;
+  const n = timeline[editorIdx].n;
+  confirmed.add(n);
+  clearDoubt(n, true);
+  saveSettingsSoon();
+  jumpDoubt(editorIdx + 1);
+});
+$("#pl-doubt").addEventListener("change", () => $("#sheet").classList.toggle("nodoubt", !$("#pl-doubt").checked));
+function jumpDoubt(from) {
+  const n = timeline.length;
+  for (let k = 0; k < n; k++) {
+    const i = (from + k) % n;
+    if (timeline[i].u || timeline[i].lu) {
+      if (!audio.src) setAudioSource();
+      audio.currentTime = timeline[i].t0;
+      const el = (noteEls.get(timeline[i].n) || [])[0];
+      if (el) followScroll(el, true);
+      setTimeout(() => openEditor(i), 250);
+      return;
+    }
+  }
+  closeEditor();
+  $("#pl-status").textContent = "확인할 곳이 더 없어요 👍";
+}
+$("#pl-next-doubt").addEventListener("click", () => {
+  const cur = editorIdx >= 0 ? editorIdx + 1 : Math.max(0, timeline.findIndex((x) => x.t0 >= audio.currentTime));
+  jumpDoubt(cur);
 });

@@ -1,7 +1,7 @@
 """앱 버전과 업데이트 확인 정보."""
 import os
 
-VERSION = "1.0.3"
+VERSION = "1.1.0"
 REPO = "cybereun/song-to-score"
 DEVELOPER = "@2026Lebi_Cybereun"
 HOMEPAGE = "https://cybereun.github.io/song-to-score/"

@@ -153,3 +153,76 @@ def _remove_short(mask: np.ndarray, min_len: int) -> np.ndarray:
         else:
             i += 1
     return m
+
+
+# ---------------------------------------------------------------- 교차 검증
+
+def save_track(track: dict, path) -> None:
+    np.savez_compressed(path, **{k: np.asarray(v, dtype=np.float32) for k, v in track.items()})
+
+
+def load_track(path) -> dict:
+    with np.load(path) as z:
+        return {k: z[k] for k in z.files}
+
+
+def recover_missing(notes: list[dict], track: dict, times: list[float]) -> list[dict]:
+    """가사가 들리는데 음표가 없는 곳: 기준을 낮춰 그 부분의 음높이를 다시 확인한다.
+
+    실제로 음높이가 측정된 경우에만 음표를 넣고 '확인 필요'로 표시한다.
+    측정되지 않으면 음표를 만들지 않는다.
+    """
+    f0, conf, db = track["f0"], track["conf"], track["db"]
+    out = sorted(notes, key=lambda n: n["start"])
+    for t in sorted(times):
+        if any(n["start"] <= t + 0.3 and n["end"] >= t - 0.05 for n in out):
+            continue
+        a, b = max(0, int((t - 0.1) / HOP_S)), min(len(f0), int((t + 0.45) / HOP_S))
+        if b - a < 6:
+            continue
+        mask = (conf[a:b] >= 0.2) & (db[a:b] >= -48) & (f0[a:b] > 0)
+        best, cur = (0, 0), 0
+        for i, v in enumerate(mask):
+            cur = cur + 1 if v else 0
+            if cur > best[0]:
+                best = (cur, i - cur + 1)
+        length, first = best
+        if length < 6:
+            continue
+        i0, i1 = a + first, a + first + length
+        midi = 69 + 12 * np.log2(np.maximum(f0[i0:i1], 1e-3) / 440.0)
+        if np.std(midi) > 1.5:  # 음높이가 흔들리면 음으로 보지 않음
+            continue
+        m = int(round(float(np.median(midi))))
+        start, end = i0 * HOP_S, i1 * HOP_S
+        for n in out:  # 기존 음표와 겹치지 않게
+            if n["start"] < end and n["end"] > start:
+                if n["start"] >= start:
+                    end = n["start"]
+                else:
+                    start = n["end"]
+        if end - start < 0.06 or not 43 <= m <= 88:
+            continue
+        out.append({"start": round(start, 3), "end": round(end, 3), "midi": m, "pitch": float(m),
+                    "conf": round(float(np.mean(conf[i0:i1])), 3), "u": True, "recovered": True})
+        out.sort(key=lambda n: n["start"])
+    return out
+
+
+def cross_check(notes: list[dict], other: list[dict]) -> list[dict]:
+    """다른 방식(Basic Pitch)으로 받아쓴 음과 비교해, 서로 다른 음표에 '확인 필요'(u) 표시."""
+    if not other:
+        return notes
+    other = sorted(other, key=lambda n: n["start"])
+    for n in notes:
+        dur = max(n["end"] - n["start"], 0.05)
+        agree = False
+        for o in other:
+            if o["start"] > n["end"]:
+                break
+            ov = min(n["end"], o["end"]) - max(n["start"], o["start"])
+            if ov >= 0.3 * dur and abs(o["midi"] - n["midi"]) <= 1:
+                agree = True
+                break
+        n["u"] = bool(n.get("recovered") or not agree or n.get("conf", 1.0) < 0.55)
+    return notes

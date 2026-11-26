@@ -40,6 +40,8 @@ class Event:
     nid: int = -1  # 원래 멜로디 음표 번호 (화면 표시·가사 수정용)
     t0: float = 0.0  # 원곡에서의 시작·끝 시각(초)
     t1: float = 0.0
+    u: bool = False  # 음높이 확인 필요
+    lu: bool = False  # 가사 확인 필요
 
 
 @dataclass
@@ -140,7 +142,7 @@ def _auto_downbeat(an: dict, beats: np.ndarray, beats_per_bar: int) -> int:
 def _lyric_syllables(an: dict, lyrics_text: str | None) -> tuple[list[tuple[float, str]], list[str]]:
     lines = an.get("lyrics", {}).get("lines", [])
     if lyrics_text is None:
-        sy = [(s["t"], s["text"], True) for ln in lines for s in ln["syllables"]]
+        sy = [(s["t"], s["text"], s.get("a", True)) for ln in lines for s in ln["syllables"]]
         return sy, [ln["text"] for ln in lines]
     edited = [l.strip() for l in lyrics_text.splitlines()]
     edited = [l for l in edited if l]
@@ -208,39 +210,18 @@ def _join(prev: str, text: str) -> str:
     return prev + " " + text
 
 
-def _fill_missing_notes(mel: list[dict], syl: list[tuple[float, str]]) -> list[dict]:
-    """가사 음절이 있는데 근처에 음표가 없으면(주로 줄 첫 글자의 약한 자음)
-    바로 뒤 음의 높이로 짧은 음표를 만들어 채운다."""
-    if not mel:
-        return mel
-    starts = np.array([n["start"] for n in mel])
-    ends = np.array([n["end"] for n in mel])
-    # 한 구절(0.8초 넘게 쉬기 전까지)의 음절 수만큼 실제 음표가 있으면 가짜 음표를 만들지 않는다.
-    # (가사 시간이 조금 이르게 잡혀도 실제 음표에 차례로 붙는다)
-    enough = [False] * len(syl)
-    i = 0
-    while i < len(syl):
-        j = i
-        while j + 1 < len(syl) and syl[j + 1][0] - syl[j][0] < 0.8:
-            j += 1
-        a, b = syl[i][0] - 0.3, syl[j][0] + 0.8
-        n_notes = int(np.sum((starts >= a) & (starts <= b)))
-        for k in range(i, j + 1):
-            enough[k] = n_notes >= (j - i + 1)
-        i = j + 1
-    extra = []
-    for idx, (t, _, anchored) in enumerate(syl):
-        if not anchored or enough[idx] or np.any((starts <= t + 0.3) & (ends >= t - 0.05)):
+def _doubt_notes(mel: list[dict], lyr: list[str], syl: list[tuple], lines: list[dict]) -> list[bool]:
+    """확신이 낮은 음절(sure=False)이 붙은 음표를 표시한다."""
+    unsure = {(round(s["t"], 3), s["text"]) for ln in lines for s in ln["syllables"] if not s.get("sure", True)}
+    res = [False] * len(mel)
+    for t, text, *_ in syl:
+        if (round(t, 3), text) not in unsure:
             continue
-        nxt = np.where(starts > t)[0]
-        prv = np.where(ends <= t)[0]
-        ref = mel[int(nxt[0])] if len(nxt) else mel[int(prv[-1])]
-        end = min(float(starts[nxt[0]]) if len(nxt) else t + 0.4, t + 0.5)
-        if end - t < 0.08:
-            continue
-        extra.append({"start": round(t, 3), "end": round(end, 3), "midi": ref["midi"],
-                      "conf": 0.0, "nid": 100000 + int(round(t * 100))})
-    return sorted(mel + extra, key=lambda n: n["start"]) if extra else mel
+        piece = text.rstrip("-")
+        cand = [j for j, n in enumerate(mel) if piece and piece in lyr[j] and abs(n["start"] - t) < 1.5]
+        if cand:
+            res[min(cand, key=lambda j: abs(mel[j]["start"] - t))] = True
+    return res
 
 
 def _assign_lyrics(notes: list[dict], syl: list[tuple[float, str, bool]]) -> list[str]:
@@ -275,10 +256,9 @@ def _assign_lyrics(notes: list[dict], syl: list[tuple[float, str, bool]]) -> lis
             # 빈 음표가 없으면 바로 앞 음표에 붙임 (가까울 때만)
             j = last if last >= 0 and abs(starts[last] - t) < 0.8 else -1
             if j < 0:
+                # 가까운 음표가 없어도 가사는 버리지 않는다: 순서를 지키는 가장 가까운 음표에
                 near = int(np.argmin(np.abs(starts - t)))
-                if abs(starts[near] - t) > 0.8:
-                    continue
-                j = near
+                j = max(near, last, 0)
         res[j] = _join(res[j], text)
         if j > last:
             last, last_t = j, starts[j]
@@ -375,31 +355,38 @@ def build_score(an: dict, st: dict) -> Score:
     for i, n in enumerate(mel):
         n.setdefault("nid", i)
     syl, lyric_lines = _lyric_syllables(an, st.get("lyrics_text"))
-    mel = _fill_missing_notes(mel, syl)
     lyr = _assign_lyrics(mel, syl)
+    lyr_doubt = _doubt_notes(mel, lyr, syl, an.get("lyrics", {}).get("lines", []))
     # 음표별로 직접 고친 가사 (화면에서 음표를 눌러 수정한 것)
     edits = {str(k): str(v).strip() for k, v in (st.get("lyric_edits") or {}).items()}
+    confirmed = {str(x) for x in (st.get("confirmed") or [])}
+    note_doubt = [bool(n.get("u")) for n in mel]
     for i, n in enumerate(mel):
         if str(n["nid"]) in edits:
             lyr[i] = edits[str(n["nid"])]
+            lyr_doubt[i] = False
+        if str(n["nid"]) in confirmed:
+            lyr_doubt[i] = note_doubt[i] = False
 
     raw = []
-    for n, ly in zip(mel, lyr):
+    for n, ly, lu, u in zip(mel, lyr, lyr_doubt, note_doubt):
         s = round(units(n["start"]) / grid) * grid
         e = round(units(n["end"]) / grid) * grid
         if e <= s:
             e = s + grid
-        raw.append([s, e, n["midi"] + transpose, ly, n["end"] - n["start"], n["nid"], n["start"], n["end"]])
+        raw.append([s, e, n["midi"] + transpose, ly, n["end"] - n["start"], n["nid"], n["start"], n["end"], u, lu])
     # 겹침 정리 (단선율)
-    raw.sort(key=lambda r: (r[0], -r[4]))
+    # 같은 칸: 가사 있는 음표 먼저(원곡 시간 순), 가사 없는 음표는 긴 것 먼저
+    raw.sort(key=lambda r: (r[0], 0 if r[3] else 1, r[6] if r[3] else -r[4]))
     mono: list[list] = []
     for r in raw:
         if mono and r[0] == mono[-1][0]:
             if r[3] and mono[-1][3] and r[1] > r[0] + grid:
                 r[0] += grid  # 둘 다 가사가 있으면 뒤 음표를 한 칸 밀어 둘 다 살림
             else:
-                if r[3] and not mono[-1][3]:
-                    mono[-1][3] = r[3]
+                if r[3]:  # 같은 칸에 겹치면 가사를 잃지 않게 이어 붙인다
+                    mono[-1][3] = _join(mono[-1][3], r[3]) if mono[-1][3] else r[3]
+                    mono[-1][9] = True  # 한 음표에 글자가 겹친 곳은 '확인 필요'
                 continue
         if mono and r[0] < mono[-1][1]:
             mono[-1][1] = r[0]
@@ -438,7 +425,8 @@ def build_score(an: dict, st: dict) -> Score:
     off = bar0 * bar_units
     total = n_bars * bar_units
 
-    melody = [Event(m[0] - off, m[1] - m[0], [m[2]], m[3], nid=m[5], t0=m[6], t1=m[7]) for m in mono
+    melody = [Event(m[0] - off, m[1] - m[0], [m[2]], m[3], nid=m[5], t0=m[6], t1=m[7],
+                    u=m[8], lu=bool(m[9] and m[3])) for m in mono
               if 0 <= m[0] - off < total]
     for ev in melody:
         ev.length = min(ev.length, total - ev.start)

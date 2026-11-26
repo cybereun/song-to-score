@@ -106,6 +106,10 @@
           </select>
         </label>
       </div>
+      <details class="orig-box">
+        <summary>가사 원문 붙여 넣기 <small>(선택 · 가장 정확해요)</small></summary>
+        <textarea id="orig-new" rows="6" spellcheck="false" placeholder="수노 등에서 만든 곡이면 가사를 그대로 붙여 넣으세요. [Verse] 같은 표시는 자동으로 빼요. 이 글자를 그대로 쓰고, 노래는 시간 맞추기에만 써요."></textarea>
+      </details>
       <div id="recent" class="recent"></div>
     </section>
 
@@ -128,6 +132,7 @@
     <section id="settings" class="card hidden">
       <h2><span class="num">3</span>악보 설정</h2>
       <div id="summary" class="summary"></div>
+      <div id="verify" class="verify hidden"></div>
 
       <div class="modes" id="modes">
         <label class="mode"><input type="radio" name="mode" value="lead" checked><span>🎤<b>멜로디</b><i>멜로디 + 코드 + 가사</i></span></label>
@@ -189,6 +194,16 @@
         <button id="lyrics-reset" class="link">인식된 원래 가사로 되돌리기</button>
       </details>
 
+      <details class="orig-box" id="orig-box">
+        <summary>가사 원문 적용 <small>(원문이 있으면 가장 정확해요)</small></summary>
+        <textarea id="orig-text" rows="8" spellcheck="false" placeholder="원래 가사를 붙여 넣고 「원문 가사 적용」을 누르면, 이 글자를 그대로 악보에 붙여요. [Verse] 같은 표시는 자동으로 빼요."></textarea>
+        <div class="orig-actions">
+          <button id="orig-apply" class="btn primary">원문 가사 적용</button>
+          <button id="orig-revert" class="btn">받아쓴 가사로</button>
+        </div>
+        <p id="orig-msg" class="upd-msg"></p>
+      </details>
+
       <button id="render" class="primary">악보 만들기</button>
     </section>
 
@@ -245,6 +260,8 @@
         <option value="0.5">0.5배</option><option value="0.75">0.75배</option><option value="1" selected>1배</option>
       </select>
       <label class="pl-follow"><input id="pl-follow" type="checkbox" checked> 따라가기</label>
+      <label class="pl-follow"><input id="pl-doubt" type="checkbox" checked> 확인 필요 표시</label>
+      <button id="pl-next-doubt" class="link" title="다음 확인 필요한 곳으로">다음 확인할 곳 ▶</button>
       <span id="pl-status" class="pl-status"></span>
     </div>
     <p id="sheet-hint" class="sheet-hint hidden">▶ 재생하면 지금 부르는 음표와 가사가 <b class="red">빨간색</b>으로 표시돼요. 음표나 가사를 누르면 그 위치로 이동하고 가사를 고칠 수 있어요.</p>
@@ -254,10 +271,12 @@
     <!-- 가사 고치기 창 -->
     <div id="editor" class="editor hidden" role="dialog" aria-label="가사 고치기">
       <div class="ed-head"><b>가사 고치기</b><span id="ed-time"></span><button id="ed-close" class="ed-x" title="닫기">×</button></div>
+      <p id="ed-doubt" class="ed-doubt hidden">⚠ 확신이 낮은 곳이에요. 들어 보고 맞으면 「맞아요」를 누르세요.</p>
       <input id="ed-text" type="text" placeholder="이 음표의 가사 (비우면 가사 없음)">
       <div class="ed-row">
         <button id="ed-save" class="btn primary">바꾸기</button>
         <button id="ed-del" class="btn">지우기</button>
+        <button id="ed-ok" class="btn hidden">✓ 맞아요</button>
       </div>
       <div class="ed-row">
         <button id="ed-insert" class="btn" title="여기에 새 글자를 넣고, 뒤 가사를 한 음표씩 뒤로 밀어요">끼워 넣기 ⇥</button>

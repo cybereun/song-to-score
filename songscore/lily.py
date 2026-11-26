@@ -1,6 +1,7 @@
 """악보 모델 → LilyPond 원고 → PDF/MIDI."""
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -61,15 +62,15 @@ def _chord_token(ev: Event, flats: bool, with_strings: bool) -> str:
     return "<" + " ".join(parts) + ">"
 
 
-def _tag(kind: str, nid: int, k: int = 0) -> str:
+def _tag(kind: str, nid: int, k: int = 0, unsure: bool = False) -> str:
     """SVG 에서 찾을 수 있게 음표/가사에 id 를 붙인다 (재생 표시·클릭 수정용)."""
     ident = f"{kind}{nid}" + (f"_{k}" if k else "")
-    cls = {"n": "mn", "l": "ly"}[kind]
+    cls = {"n": "mn", "l": "ly"}[kind] + (" unsure" if unsure else "")
     return f"\\tweak output-attributes #'((id . \"{ident}\") (class . \"{cls}\")) "
 
 
 def voice_music(events: list[Event], sc: Score, with_strings: bool = False,
-                breaks: bool = False, ids: bool = False) -> tuple[str, list[tuple[str, int]]]:
+                breaks: bool = False, ids: bool = False) -> tuple[str, list[tuple[str, int, bool]]]:
     """음표열을 마디별 LilyPond 문자열로. 가사 음절 리스트도 함께 돌려준다."""
     bar, group = sc.bar_units, GROUP.get(sc.time_sig, 8)
     total = sc.n_bars * bar
@@ -82,12 +83,12 @@ def voice_music(events: list[Event], sc: Score, with_strings: bool = False,
             if clean[-1].length <= 0:
                 clean.pop()
         clean.append(Event(e.start, min(e.length, total - e.start), e.pitches, e.lyric, e.strings,
-                           e.nid, e.t0, e.t1))
+                           e.nid, e.t0, e.t1, e.u, e.lu))
 
     # 마디별 조각(시작, 길이, 이벤트, 첫조각여부)
     tokens_by_bar: list[list[str]] = [[] for _ in range(sc.n_bars)]
     filled = [0] * sc.n_bars
-    lyrics: list[tuple[str, int]] = []
+    lyrics: list[tuple[str, int, bool]] = []
 
     def put_rest(start: int, length: int):
         while length > 0:
@@ -120,9 +121,9 @@ def voice_music(events: list[Event], sc: Score, with_strings: bool = False,
         for k, (b, d) in enumerate(pieces):
             t = tok + DUR[d] + ("~" if k < len(pieces) - 1 else "")
             if ids and e.nid >= 0:
-                t = _tag("n", e.nid, k) + t
+                t = _tag("n", e.nid, k, e.u) + t
             tokens_by_bar[b].append(t)
-        lyrics.append((e.lyric, e.nid))
+        lyrics.append((e.lyric, e.nid, e.lu))
         cursor = e.start + e.length
     if cursor < total:
         put_rest(cursor, total - cursor)
@@ -199,16 +200,16 @@ def _esc(s: str) -> str:
     return s.replace("\\", "").replace('"', "'")
 
 
-def lyric_music(lyrics: list[tuple[str, int]], ids: bool = True) -> str:
+def lyric_music(lyrics: list[tuple[str, int, bool]], ids: bool = True) -> str:
     # 가사 없는 음표는 \skip 으로 건너뛰어 앞뒤 단어 간격이 유지되게 한다
     out = []
-    for text, nid in lyrics:
+    for text, nid, unsure in lyrics:
         if not text:
             out.append("\\skip 1")
         else:
             hyphen = text.endswith("-") and len(text) > 1  # 영어 음절 이음 (Some -- where)
             word = text[:-1] if hyphen else text
-            out.append((_tag("l", nid) if ids and nid >= 0 else "") + f'"{_esc(word)}"' + (" --" if hyphen else ""))
+            out.append((_tag("l", nid, 0, unsure) if ids and nid >= 0 else "") + f'"{_esc(word)}"' + (" --" if hyphen else ""))
     return " ".join(out)
 
 
@@ -221,7 +222,7 @@ def build_ly(sc: Score) -> str:
     glob = f"{key_cmd(sc)} \\time {sc.time_sig} \\tempo {head_tempo} = {sc.bpm}"
     mel, lyr = voice_music(sc.melody, sc, breaks=True, ids=True)
     chords = chord_music(sc)
-    show_lyr = sc.show_lyrics and any(t for t, _ in lyr)
+    show_lyr = sc.show_lyrics and any(x[0] for x in lyr)
 
     lyrics_ctx = f'\\new Lyrics \\lyricsto "mel" {{ {lyric_music(lyr)} }}' if show_lyr else ""
     chord_ctx = f"\\new ChordNames \\chordmode {{ \\set chordChanges = ##t {chords} }}"
@@ -247,7 +248,8 @@ def build_ly(sc: Score) -> str:
     elif sc.mode == "guitar_chords":
         strum, _ = voice_music(sc.lower, sc, with_strings=True)
         # 노래 멜로디는 원래 음높이(한 옥타브 위)로 보여 준다
-        mel_up = voice_music([Event(e.start, e.length, [e.pitches[0] + 12], e.lyric, nid=e.nid, t0=e.t0, t1=e.t1)
+        mel_up = voice_music([Event(e.start, e.length, [e.pitches[0] + 12], e.lyric, nid=e.nid, t0=e.t0, t1=e.t1,
+                                    u=e.u, lu=e.lu)
                               for e in sc.melody], sc, breaks=True, ids=True)[0]
         parts = [chord_ctx,
                  f"\\new FretBoards {{ \\set chordChanges = ##t {fret_music(sc)} }}",
@@ -320,8 +322,7 @@ def _run_lily(args: list[str]) -> subprocess.CompletedProcess:
     )
 
 
-def render(sc: Score, out_dir: Path, name: str = "score") -> dict:
-    """화면 미리보기용 SVG(쪽별)와 MIDI 를 만든다. PDF 는 저장·인쇄할 때 make_pdf 로 만든다."""
+def _render_once(sc: Score, out_dir: Path, name: str = "score") -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     ly = out_dir / f"{name}.ly"
     ly.write_text(build_ly(sc), encoding="utf-8")
@@ -335,6 +336,31 @@ def render(sc: Score, out_dir: Path, name: str = "score") -> dict:
     if not midi.exists():
         midi = out_dir / f"{name}.mid"
     return {"pages": pages, "midi": midi if midi.exists() else None, "ly": ly, "log": proc.stderr[-3000:]}
+
+
+def overflow(pages: list[Path]) -> bool:
+    """SVG 에서 오른쪽 여백 밖으로 나간 그림이 있는지 (음표 잘림)."""
+    for pg in pages:
+        svg = pg.read_text(encoding="utf-8")
+        m = re.search(r'viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ', svg)
+        width = float(m.group(1)) if m else 119.5
+        xs = [float(x) for x in re.findall(r"translate\((-?[\d.]+),", svg)]
+        if xs and max(xs) > width - 4.0:
+            return True
+    return False
+
+
+def render(sc: Score, out_dir: Path, name: str = "score") -> dict:
+    """화면 미리보기용 SVG(쪽별)와 MIDI 를 만든다. PDF 는 저장·인쇄할 때 make_pdf 로 만든다.
+    잘리는 줄이 있으면 한 줄의 마디 수를 줄여 다시 조판한다."""
+    while True:
+        res = _render_once(sc, out_dir, name)
+        res["overflow"] = overflow(res["pages"])
+        if not res["overflow"] or sc.bars_per_line <= 1:
+            return res
+        sc.bars_per_line -= 1
+        for old in out_dir.glob(f"{name}*.svg"):
+            old.unlink()
 
 
 def make_pdf(out_dir: Path, name: str = "score") -> Path:

@@ -8,6 +8,7 @@ let jobId = null;
 let original = null; // 분석 결과
 let pollTimer = null;
 let lyricEdits = {}; // 음표별로 직접 고친 가사 {음표번호: 글자}
+let confirmed = new Set(); // 확인 필요 표시를 확인한 음표 번호
 
 // ---------- 공통
 async function api(path, opts = {}) {
@@ -82,6 +83,7 @@ async function upload(file) {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("language", $("#language").value);
+  fd.append("original_lyrics", $("#orig-new").value);
   $("#fname").textContent = file.name;
   show("#upload", false); show("#progress"); show("#settings", false); show("#downloads", false);
   setProgress({ progress: 0, message: "파일 올리는 중…" });
@@ -144,6 +146,11 @@ async function openJob(id, name) {
   $("#dl-voc").href = `/api/jobs/${id}/file/vocals?download=1`;
   $("#dl-acc").href = `/api/jobs/${id}/file/accomp?download=1`;
   lyricEdits = (s && s.lyric_edits) || {};
+  confirmed = new Set((s && s.confirmed) || []);
+  $("#orig-text").value = original.original_lyrics || "";
+  $("#orig-msg").textContent = original.can_original ? "" : "예전에 분석한 곡이에요. 원문 적용은 파일을 다시 넣어 분석한 뒤 쓸 수 있어요.";
+  $("#orig-apply").disabled = $("#orig-revert").disabled = !original.can_original;
+  showVerify(original.verify);
   setAudioSource();
   render();
 }
@@ -161,6 +168,7 @@ function applySettings(s) {
   $("#lyrics_page").checked = s.lyrics_page !== false;
   if (s.lyrics_text != null) $("#lyrics").value = s.lyrics_text;
   lyricEdits = s.lyric_edits || {};
+  confirmed = new Set(s.confirmed || []);
 }
 
 function collect() {
@@ -182,6 +190,7 @@ function collect() {
     lyrics_page: $("#lyrics_page").checked,
     lyrics_text: lyr.trim() === orig.trim() ? null : lyr,
     lyric_edits: lyricEdits,
+    confirmed: [...confirmed],
   };
 }
 
@@ -204,6 +213,7 @@ $("#render").addEventListener("click", () => render(true));
 $("#lyrics-reset").addEventListener("click", () => {
   $("#lyrics").value = original.lyrics.join("\n");
   lyricEdits = {};
+  confirmed = new Set();
   render();
 });
 $("#new").addEventListener("click", () => {
@@ -249,3 +259,58 @@ function toast(msg, path) {
   setTimeout(() => t.remove(), 6000);
 }
 window.addEventListener("pywebviewready", () => document.body.classList.add("desktop"));
+
+// ---------- 교차 검증 결과 · 원문 가사
+function showVerify(v) {
+  const el = $("#verify");
+  if (!v) { show("#verify", false); return; }
+  const rows = [];
+  rows.push(v.mode === "original"
+    ? "✅ <b>원문 가사</b>를 그대로 썼어요."
+    : "✅ 가사를 여러 번 들어 <b>교차 확인</b>했어요.");
+  if (v.syllables_unsure) {
+    rows.push(v.mode === "original"
+      ? `⚠ 위치를 확인하지 못한 글자 <b>${v.syllables_unsure}</b>개 (전체 ${v.syllables})`
+      : `⚠ 확신이 낮은 글자 <b>${v.syllables_unsure}</b>개 (전체 ${v.syllables})`);
+  }
+  if (v.notes_unsure) rows.push(`⚠ 두 방식의 음높이가 다른 음표 <b>${v.notes_unsure}</b>개 (전체 ${v.notes})`);
+  if (v.empty_regions && v.empty_regions.length) {
+    const list = v.empty_regions.slice(0, 5).map(([a]) => `<button class="link jump" data-t="${a}">${fmt(a)}</button>`).join(" ");
+    rows.push(`ℹ 소리는 있는데 가사가 없는 곳: ${list}`);
+  }
+  rows.push("<span class=\"muted\">주황색으로 표시된 곳을 들어 보며 확인하세요.</span>");
+  el.innerHTML = rows.map((r) => `<div>${r}</div>`).join("");
+  el.querySelectorAll(".jump").forEach((b) => b.addEventListener("click", () => {
+    if (!audio.src) setAudioSource();
+    audio.currentTime = Math.max(0, Number(b.dataset.t) - 0.5);
+    audio.play();
+  }));
+  show("#verify", true);
+}
+
+async function applyOriginal(text) {
+  const msg = $("#orig-msg");
+  msg.textContent = "가사 위치를 맞추는 중…";
+  msg.classList.remove("err");
+  try {
+    await api(`/api/jobs/${jobId}/original`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+    });
+    closeEditor();
+    original = await api(`/api/jobs/${jobId}/analysis`);
+    $("#lyrics").value = original.lyrics.join("\n");
+    lyricEdits = {};
+    confirmed = new Set();
+    showVerify(original.verify);
+    msg.textContent = text.trim() ? "원문 가사를 적용했어요." : "받아쓴 가사로 되돌렸어요.";
+    render();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.classList.add("err");
+  }
+}
+$("#orig-apply").addEventListener("click", () => {
+  if (!$("#orig-text").value.trim()) { $("#orig-msg").textContent = "가사를 먼저 붙여 넣어 주세요."; return; }
+  applyOriginal($("#orig-text").value);
+});
+$("#orig-revert").addEventListener("click", () => { $("#orig-text").value = ""; applyOriginal(""); });
