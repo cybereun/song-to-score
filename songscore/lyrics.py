@@ -15,7 +15,40 @@ def split_syllables(text: str) -> list[str]:
     return TOKEN.findall(text)
 
 
-def _load_model():
+def _is_real_model(d: Path) -> bool:
+    f = d / "model.bin"
+    return f.exists() and not f.is_symlink() and f.stat().st_size > 50_000_000
+
+
+def model_path(progress=lambda p, msg="": None) -> str:
+    """가사 인식 모델을 '바로가기(심볼릭 링크) 없는 일반 파일'로 받아 둔 폴더 경로.
+
+    Hugging Face 캐시는 모델 파일을 바로가기로 연결해 두는데, Windows 에서는
+    CTranslate2 가 그 바로가기를 열지 못하는 경우가 있다(Unable to open file 'model.bin').
+    """
+    from faster_whisper.utils import download_model
+
+    from .config import DATA_DIR
+
+    d = DATA_DIR / "models" / f"whisper-{WHISPER_MODEL}"
+    if _is_real_model(d):
+        return str(d)
+    progress(0.02, "가사 인식 모델 내려받는 중 (처음 한 번, 약 1.6GB)")
+    download_model(WHISPER_MODEL, output_dir=str(d))
+    # 혹시 바로가기로 받아졌다면 실제 파일로 바꿔 둔다
+    for f in d.iterdir():
+        if f.is_symlink():
+            target = f.resolve()
+            f.unlink()
+            import shutil
+
+            shutil.copyfile(target, f)
+    if not _is_real_model(d):
+        raise RuntimeError(f"가사 인식 모델을 받지 못했어요. 인터넷 연결을 확인해 주세요. ({d})")
+    return str(d)
+
+
+def _load_model(path: str):
     add_cuda_dll_dirs()
     from faster_whisper import WhisperModel
 
@@ -23,20 +56,21 @@ def _load_model():
         import torch
 
         if torch.cuda.is_available():
-            return WhisperModel(WHISPER_MODEL, device="cuda", compute_type="float16")
+            return WhisperModel(path, device="cuda", compute_type="float16")
     except Exception:
         pass
-    return WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+    return WhisperModel(path, device="cpu", compute_type="int8")
 
 
 def transcribe(vocals: Path, language: str | None = None, progress=lambda p, msg="": None) -> dict:
+    path = model_path(progress)
     try:
-        model = _load_model()
+        model = _load_model(path)
     except Exception:
         # GPU 라이브러리 문제 시 CPU로 재시도
         from faster_whisper import WhisperModel
 
-        model = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+        model = WhisperModel(path, device="cpu", compute_type="int8")
 
     import librosa
 
