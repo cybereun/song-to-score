@@ -75,11 +75,40 @@ loadRecent();
 const drop = $("#drop");
 ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) upload(f); });
-$("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) upload(f); e.target.value = ""; });
+drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) pickFile(f); });
+$("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) pickFile(f); e.target.value = ""; });
+
+// 파일을 고르면 바로 분석하지 않고, (원하면 가사를 붙여 넣은 뒤) 「분석 시작」을 눌러야 시작한다
+let pickedFile = null;
+function pickFile(file) {
+  if (!/\.(mp3|wav|m4a|flac|ogg|aac)$/i.test(file.name)) {
+    showError("mp3, wav, m4a, flac, ogg 파일만 넣을 수 있어요.");
+    return;
+  }
+  showError("");
+  pickedFile = file;
+  updateUpload();
+}
+function updateUpload() {
+  const f = pickedFile;
+  drop.classList.toggle("picked", !!f);
+  $("#drop-title").textContent = f ? f.name : "여기에 파일을 끌어다 놓거나 클릭";
+  $("#drop-sub").textContent = f ? `${(f.size / 1048576).toFixed(1)}MB · 다른 파일로 바꾸려면 다시 클릭` : "mp3 · wav · m4a · flac";
+  $("#start").disabled = !f;
+  $("#start").textContent = !f ? "음원 파일을 먼저 넣어 주세요"
+    : $("#orig-new").value.trim() ? "▶ 원문 가사로 분석 시작" : "▶ 가사 없이 분석 시작";
+}
+function resetUpload() {
+  pickedFile = null;
+  $("#orig-new").value = "";
+  updateUpload();
+}
+$("#orig-new").addEventListener("input", updateUpload);
+$("#start").addEventListener("click", () => { if (pickedFile) upload(pickedFile); });
 
 async function upload(file) {
   showError("");
+  $("#start").disabled = true;
   const fd = new FormData();
   fd.append("file", file);
   fd.append("language", $("#language").value);
@@ -95,6 +124,7 @@ async function upload(file) {
   } catch (err) {
     showError("업로드 실패: " + err.message);
     show("#upload"); show("#progress", false);
+    updateUpload();
   }
 }
 
@@ -118,6 +148,7 @@ async function poll() {
     if (st.state === "error") {
       showError("분석 중 오류가 났어요:\n" + st.message);
       show("#upload");
+      updateUpload(); // 파일과 가사는 그대로 두어 다시 시도할 수 있게
       return;
     }
   } catch (_) {}
@@ -128,6 +159,7 @@ async function poll() {
 async function openJob(id, name) {
   jobId = id;
   original = await api(`/api/jobs/${id}/analysis`);
+  resetUpload();
   show("#upload", false); show("#progress", false); show("#settings"); show("#downloads", false);
   const k = original.key;
   $("#summary").innerHTML = `
