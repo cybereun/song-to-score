@@ -80,6 +80,22 @@ def list_jobs():
     return out
 
 
+@app.delete("/api/jobs/{job_id}")
+def delete_job(job_id: str):
+    """최근 작업 지우기: 그 곡의 분석 결과·분리한 음원·악보를 지운다 (원래 음원 파일은 그대로)."""
+    import shutil
+
+    d = job_dir(job_id)
+    st = d / "status.json"
+    if st.exists() and '"running"' in st.read_text(encoding="utf-8"):
+        raise HTTPException(409, "분석 중인 작업은 지울 수 없어요")
+    with render_lock:
+        shutil.rmtree(d, ignore_errors=True)
+    if d.exists():
+        raise HTTPException(500, "일부 파일을 지우지 못했어요. 프로그램을 다시 열고 시도해 주세요.")
+    return {"ok": True}
+
+
 @app.get("/api/jobs/{job_id}/status")
 def status(job_id: str):
     s = job_dir(job_id) / "status.json"

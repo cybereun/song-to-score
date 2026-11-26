@@ -192,3 +192,14 @@ body.desktop .layout { height: calc(100vh - 63px); }
 .about a, .pane a { color: var(--accent); }
 .about .dev-link { font-weight: 700; text-decoration: none; border-bottom: 1.5px solid currentColor; }
 .about .dev-link:hover { opacity: .8; }
+.new-song { width: 100%; margin-top: 16px; padding: 12px; font-size: 14px; border: 1.5px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
+.new-song:hover { background: var(--accent); color: #fff; }
+.new-song span { font-size: 16px; font-weight: 800; }
+.recent-item { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.recent .recent-item button.open { flex: 1; border: 0; border-top: 0; padding: 8px 2px; }
+.recent-item.failed .open { opacity: .6; cursor: not-allowed; }
+.recent-item.failed em { color: #b4321e; }
+.recent .recent-item button.del { flex: none; width: auto; min-width: 34px; border: 0; border-top: 0; justify-content: center; align-items: center; padding: 0 6px; font-size: 14px; opacity: .6; color: var(--ink); }
+.recent-item:hover .del { opacity: .9; }
+.recent .recent-item button.del:hover { opacity: 1; color: #b4321e; }
+.recent .recent-item button.del.confirm { opacity: 1; color: #fff; background: #b4321e; border-radius: 6px; margin: 5px 0; font-weight: 700; }

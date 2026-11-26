@@ -89,6 +89,12 @@ def analyze(job_dir: Path, src: Path, language: str | None = None) -> None:
         track = melody.track_pitch(vocals, pr.update)
         splits = [s["t"] for ln in lyr["lines"] for s in ln["syllables"]]
         notes = melody.segment_notes(track, splits)
+        # 노래는 있는데 가사가 비어 있는 구간(주로 곡 첫 부분)을 다시 받아써서 채운다
+        refilled = lyrics.fill_missing(vocals, lyr, notes, language, pr.update)
+        if refilled is not lyr:
+            lyr = refilled
+            splits = [s["t"] for ln in lyr["lines"] for s in ln["syllables"]]
+            notes = melody.segment_notes(track, splits)
         lyr = lyrics.drop_unsung(lyr, notes)
         _free_gpu()
 

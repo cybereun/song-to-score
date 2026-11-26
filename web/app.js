@@ -40,16 +40,31 @@ for (const mode of ["major", "minor"]) {
 // ---------- 최근 작업
 async function loadRecent() {
   try {
-    const jobs = (await api("/api/jobs")).filter((j) => j.state === "done");
+    const jobs = (await api("/api/jobs")).filter((j) => j.state === "done" || j.state === "error");
     if (!jobs.length) { $("#recent").innerHTML = ""; return; }
     $("#recent").innerHTML = "<h3>최근 작업 다시 열기</h3>";
-    for (const j of jobs.slice(0, 6)) {
-      const b = document.createElement("button");
+    for (const j of jobs.slice(0, 10)) {
+      const row = document.createElement("div");
+      row.className = "recent-item" + (j.state === "error" ? " failed" : "");
       const d = new Date(j.created * 1000);
-      b.innerHTML = `<span></span><em>${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}</em>`;
-      b.querySelector("span").textContent = j.name;
-      b.onclick = () => openJob(j.id, j.name);
-      $("#recent").append(b);
+      const when = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      row.innerHTML = `<button class="open"><span></span><em></em></button>` +
+        `<button class="del" title="이 작업 지우기" aria-label="지우기">🗑</button>`;
+      row.querySelector("span").textContent = j.name;
+      row.querySelector("em").textContent = j.state === "error" ? "분석 실패" : when;
+      const open = row.querySelector(".open");
+      if (j.state === "done") open.onclick = () => openJob(j.id, j.name);
+      else { open.disabled = true; open.title = "분석에 실패한 작업이에요. 지우고 파일을 다시 넣어 주세요."; }
+      const del = row.querySelector(".del");
+      del.onclick = async () => {
+        del.disabled = true;
+        try {
+          await api(`/api/jobs/${j.id}`, { method: "DELETE" });
+          row.remove();
+          if (!$("#recent .recent-item")) $("#recent").innerHTML = "";
+        } catch (err) { del.disabled = false; showError("지우지 못했어요: " + err.message); }
+      };
+      $("#recent").append(row);
     }
   } catch (_) {}
 }

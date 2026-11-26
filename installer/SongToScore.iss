@@ -2,7 +2,7 @@
 ; 빌드: installer\build.ps1 (stage 폴더를 만든 뒤 ISCC 로 컴파일)
 
 #define AppName "노래 악보 만들기"
-#define AppVersion "1.0.1"
+#define AppVersion "1.0.2"
 #define AppId "{{6E2F7C1A-3B8D-4E5F-9A21-5C7D8E0F1B34}"
 #define Stage "..\build\stage"
 

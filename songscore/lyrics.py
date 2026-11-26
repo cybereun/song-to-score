@@ -75,6 +75,13 @@ def transcribe(vocals: Path, language: str | None = None, progress=lambda p, msg
     import librosa
 
     audio, _ = librosa.load(str(vocals), sr=16000, mono=True)
+    lines, lang = _run(model, audio, language, 0.0, progress)
+    del model
+    return {"language": lang, "lines": lines}
+
+
+def _run(model, audio, language: str | None, offset: float = 0.0, progress=None) -> tuple[list[dict], str]:
+    """오디오(16kHz)를 받아써서 가사 줄 목록을 돌려준다. offset 초만큼 시간을 밀어 준다."""
     segments, info = model.transcribe(
         audio,
         language=language or None,
@@ -94,11 +101,81 @@ def transcribe(vocals: Path, language: str | None = None, progress=lambda p, msg
         for w in seg.words or []:
             text = w.word.strip()
             if text:
-                words.append({"start": float(w.start), "end": float(w.end), "text": text})
+                words.append({"start": float(w.start) + offset, "end": float(w.end) + offset, "text": text})
         lines += group_lines(words)
-        progress(min(0.99, seg.end / total), "가사 인식 중")
+        if progress:
+            progress(min(0.99, seg.end / total), "가사 인식 중")
+    return lines, info.language
+
+
+def missing_regions(lines: list[dict], notes: list[dict], max_len: float = 25.0) -> list[tuple[float, float]]:
+    """노래(멜로디 음표)는 있는데 가사가 없는 구간. 다시 받아쓸 구간 목록."""
+    if not notes:
+        return []
+    notes = sorted(notes, key=lambda n: n["start"])
+    phrases: list[list[float]] = []
+    for n in notes:
+        if phrases and n["start"] - phrases[-1][1] < 1.2:
+            phrases[-1][1] = max(phrases[-1][1], n["end"])
+            phrases[-1][2] += 1
+        else:
+            phrases.append([n["start"], n["end"], 1])
+
+    def covered(a: float, b: float) -> float:
+        tot = 0.0
+        for ln in lines:
+            tot += max(0.0, min(b, ln["end"] + 0.3) - max(a, ln["start"] - 0.3))
+        return tot / max(b - a, 1e-6)
+
+    gaps = [(a, b) for a, b, k in phrases if b - a >= 1.5 and k >= 4 and covered(a, b) < 0.3]
+    # 가까운 구간은 합치되 너무 길지 않게
+    merged: list[list[float]] = []
+    for a, b in gaps:
+        if merged and a - merged[-1][1] < 3.0 and b - merged[-1][0] <= max_len:
+            merged[-1][1] = b
+        else:
+            merged.append([a, b])
+    return [(max(0.0, a - 0.6), b + 0.6) for a, b in merged]
+
+
+def fill_missing(vocals: Path, result: dict, notes: list[dict], language: str | None = None,
+                 progress=lambda p, msg="": None) -> dict:
+    """긴 곡을 한 번에 받아쓸 때 Whisper 가 첫 부분 등을 통째로 건너뛰는 경우가 있다.
+    노래는 있는데 가사가 비어 있는 구간만 잘라서 다시 받아쓴 뒤 끼워 넣는다."""
+    regions = missing_regions(result["lines"], notes)
+    if not regions:
+        return result
+    import librosa
+
+    progress(0.5, f"빠진 가사 다시 확인 중 ({len(regions)}곳)")
+    path = model_path()
+    try:
+        model = _load_model(path)
+    except Exception:
+        from faster_whisper import WhisperModel
+
+        model = WhisperModel(path, device="cpu", compute_type="int8")
+    audio, sr = librosa.load(str(vocals), sr=16000, mono=True)
+    lang = language or result.get("language")
+    added = []
+    for a, b in regions:
+        clip = audio[int(a * sr): int(b * sr)]
+        if len(clip) < sr:
+            continue
+        new, _ = _run(model, clip, lang, offset=a)
+        for ln in new:
+            # 기존 가사와 겹치는 줄은 버리고, 구간 안에 있는 것만
+            if ln["end"] < a or ln["start"] > b:
+                continue
+            if any(min(ln["end"], o["end"]) - max(ln["start"], o["start"]) > 0.5 * (ln["end"] - ln["start"])
+                   for o in result["lines"]):
+                continue
+            added.append(ln)
     del model
-    return {"language": info.language, "lines": lines}
+    if not added:
+        return result
+    lines = sorted(result["lines"] + added, key=lambda ln: ln["start"])
+    return {**result, "lines": lines, "refilled": len(added)}
 
 
 FAKE_PHRASES = ("다음 영상", "시청해", "구독", "좋아요", "감사합니다", "자막", "Thank you for watching",
