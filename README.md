@@ -45,13 +45,13 @@ mp3·wav 노래 파일을 넣으면 <b>보컬을 분리해 멜로디·코드·�
 ## 설치
 
 ### 1. 내려받기
-[**최신 버전 내려받기 (Releases)**](https://github.com/cybereun/song-to-score/releases/latest) 에서 `SongToScore_Setup_<버전>.exe` (약 40MB)를 받습니다.
+[**최신 버전 내려받기 (Releases)**](https://github.com/cybereun/song-to-score/releases/latest) 에서 `SongToScore_Setup_<버전>.exe` (약 50MB)를 받습니다.
 
 ### 2. 설치하기
 1. 받은 설치 파일을 실행합니다. Python 등을 따로 설치할 필요가 없고, 관리자 권한도 필요 없습니다.
    - 코드 서명이 없어서 "Windows의 PC 보호" 창이 뜨면 **「추가 정보」 → 「실행」** 을 누르세요.
 2. 안내에 따라 「다음」을 누릅니다.
-3. 설치 도중 검은 창이 열리며 AI 분석 라이브러리(약 3~5GB)를 내려받습니다. **끝날 때까지 닫지 마세요** (10~30분).
+3. 설치 도중 검은 창이 열리며 분석 라이브러리(약 3.5GB)를 내려받습니다. **끝날 때까지 닫지 마세요** (인터넷 속도에 따라 2~15분).
    - NVIDIA 그래픽카드가 있으면 GPU 버전을 자동으로 설치합니다.
 4. 바탕화면과 시작 메뉴에 「노래 악보 만들기」가 생깁니다.
 
@@ -111,7 +111,7 @@ Windows 「설정 → 앱 → 설치된 앱」 에서 「노래 악보 만들기
 ```powershell
 powershell -ExecutionPolicy Bypass -File installer\build.ps1
 ```
-필요한 것: [Inno Setup 6](https://jrsoftware.org/isinfo.php), `build\cache\python-embed.zip`(Python 3.12 임베디드), `build\cache\get-pip.py`, `tools\lilypond-2.24.4`. 결과물은 `dist\` 에 생깁니다.
+필요한 것: [Inno Setup 6](https://jrsoftware.org/isinfo.php), `build\cache\python-embed.zip`(Python 3.12 임베디드), `build\cache\get-pip.py`, `build\cache\uv.exe`([uv](https://github.com/astral-sh/uv) 실행 파일), `tools\lilypond-2.24.4`. 결과물은 `dist\` 에 생깁니다.
 
 ### 폴더 구성
 ```
@@ -151,6 +151,7 @@ assets/              아이콘
 |---|---|---|---|
 | [GNU LilyPond](https://lilypond.org/) 2.24.4 | 악보 조판 (PDF·SVG·MIDI) | GPL-3.0-or-later | © LilyPond 개발자들. 수정하지 않은 공식 배포본을 별도 실행 파일로 사용하며, 원본 소스는 [gitlab.com/lilypond/lilypond](https://gitlab.com/lilypond/lilypond)에서 받을 수 있습니다. 함께 들어 있는 라이브러리(Ghostscript, Guile, Pango, Cairo, FreeType 등) 라이선스는 설치 폴더 `tools\lilypond-2.24.4\licenses` 에 있습니다 |
 | [Python](https://www.python.org/) 3.12 (임베디드) | 실행 환경 | PSF License 2.0 | © Python Software Foundation |
+| [uv](https://github.com/astral-sh/uv) | 구성 요소 빠른 설치 | MIT 또는 Apache-2.0 | © Astral Software Inc. |
 
 **설치 중에 내려받는 것**
 

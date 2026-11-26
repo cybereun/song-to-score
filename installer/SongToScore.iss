@@ -2,7 +2,7 @@
 ; 빌드: installer\build.ps1 (stage 폴더를 만든 뒤 ISCC 로 컴파일)
 
 #define AppName "노래 악보 만들기"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define AppId "{{6E2F7C1A-3B8D-4E5F-9A21-5C7D8E0F1B34}"
 #define Stage "..\build\stage"
 
@@ -58,7 +58,7 @@ Name: "{group}\{#AppName} 제거"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\python\pythonw.exe"; Parameters: """{app}\app.py"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon.ico"; AppUserModelID: "SongToScore.App"; Tasks: desktopicon
 
 [Run]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup_env.ps1"" -AppDir ""{app}"""; WorkingDir: "{app}"; StatusMsg: "AI 구성 요소를 내려받아 설치하는 중이에요 (10~30분, 열린 창을 닫지 마세요)..."; Flags: waituntilterminated
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup_env.ps1"" -AppDir ""{app}"""; WorkingDir: "{app}"; StatusMsg: "분석 구성 요소를 내려받아 설치하는 중이에요 (3~15분, 열린 창을 닫지 마세요)..."; Flags: waituntilterminated
 Filename: "{app}\python\pythonw.exe"; Parameters: """{app}\app.py"""; WorkingDir: "{app}"; Description: "노래 악보 만들기 실행"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]

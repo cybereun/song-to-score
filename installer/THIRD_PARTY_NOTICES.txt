@@ -19,6 +19,10 @@
    - 라이선스: Python Software Foundation License
    - https://www.python.org/
 
+3. uv (구성 요소를 빠르게 설치하는 도구)
+   - 라이선스: MIT 또는 Apache-2.0 (택일)
+   - © Astral Software Inc. https://github.com/astral-sh/uv
+
 [설치 과정에서 내려받는 구성 요소 (PyPI 등)]
 
 - PyTorch / torchaudio ........ BSD-3-Clause       https://pytorch.org/

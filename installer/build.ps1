@@ -24,6 +24,9 @@ $lily = Get-ChildItem (Join-Path $root "tools") -Directory -Filter "lilypond-*" 
 if (-not $lily) { throw "LilyPond not found in tools\" }
 Copy-Item $lily.FullName "$stage\tools\" -Recurse
 
+# fast installer tool (uv) used by setup_env.ps1
+Copy-Item (Join-Path $cache "uv.exe") "$stage\tools\uv.exe"
+
 # embeddable Python + pip bootstrap
 Expand-Archive (Join-Path $cache "python-embed.zip") "$stage\python" -Force
 $pth = Get-ChildItem "$stage\python" -Filter "python*._pth" | Select-Object -First 1
