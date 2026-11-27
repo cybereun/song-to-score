@@ -11,8 +11,12 @@
     "2026-11-27": {
       "start_total": 27,
       "recorded_at": "2026-11-27T08:29+09:00"
+    },
+    "2026-11-28": {
+      "start_total": 32,
+      "recorded_at": "2026-11-28T08:14+09:00"
     }
   },
-  "latest_total": 27,
-  "updated_at": "2026-11-27T08:29+09:00"
+  "latest_total": 32,
+  "updated_at": "2026-11-28T08:14+09:00"
 }
